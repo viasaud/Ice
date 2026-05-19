@@ -526,17 +526,9 @@ extension EventManager {
     /// A Boolean value that indicates whether the mouse pointer is in a region
     /// that should activate the "Show on hover" behavior.
     var isMouseInsideHoverActivationRegion: Bool {
-        guard let appState else {
-            return false
-        }
-
-        if appState.settingsManager.generalSettingsManager.useIceBar {
-            return isMouseInsideMenuBar &&
-            !isMouseInsideApplicationMenu &&
-            !isMouseInsideNotch
-        }
-
-        return isMouseInsideEmptyMenuBarSpace
+        isMouseInsideMenuBar &&
+        !isMouseInsideApplicationMenu &&
+        !isMouseInsideNotch
     }
 
     /// A Boolean value that indicates whether the mouse pointer is within
