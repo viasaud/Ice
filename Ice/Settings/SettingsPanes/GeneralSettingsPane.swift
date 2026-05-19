@@ -8,9 +8,6 @@ import SwiftUI
 
 struct GeneralSettingsPane: View {
     @EnvironmentObject var appState: AppState
-    @State private var isImportingCustomIceIcon = false
-    @State private var isPresentingError = false
-    @State private var presentedError: LocalizedErrorWrapper?
     @State private var isApplyingOffset = false
     @State private var tempItemSpacingOffset: CGFloat = 0 // Temporary state for the slider
 
@@ -61,24 +58,14 @@ struct GeneralSettingsPane: View {
                 iceIconOptions
             }
             IceSection {
-                iceBarOptions
-            }
-            IceSection {
                 showOnClick
                 showOnHover
-                showOnScroll
             }
             IceSection {
                 autoRehideOptions
             }
             IceSection {
                 spacingOptions
-            }
-        }
-        .alert(isPresented: $isPresentingError, error: presentedError) {
-            Button("OK") {
-                presentedError = nil
-                isPresentingError = false
             }
         }
     }
@@ -89,27 +76,6 @@ struct GeneralSettingsPane: View {
     }
 
     @ViewBuilder
-    private func menuItem(for imageSet: ControlItemImageSet) -> some View {
-        Label {
-            Text(imageSet.name.rawValue)
-        } icon: {
-            if let nsImage = imageSet.hidden.nsImage(for: appState) {
-                switch imageSet.name {
-                case .custom:
-                    Image(size: CGSize(width: 18, height: 18)) { context in
-                        context.draw(
-                            Image(nsImage: nsImage),
-                            in: context.clipBoundingRect
-                        )
-                    }
-                default:
-                    Image(nsImage: nsImage)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
     private var iceIconOptions: some View {
         Toggle("Show Ice icon", isOn: manager.bindings.showIceIcon)
             .annotation {
@@ -117,93 +83,6 @@ struct GeneralSettingsPane: View {
                     Text("You can still access Ice's settings by right-clicking an empty area in the menu bar")
                 }
             }
-        if manager.showIceIcon {
-            IceMenu("Ice icon") {
-                Picker("Ice icon", selection: manager.bindings.iceIcon) {
-                    ForEach(ControlItemImageSet.userSelectableIceIcons) { imageSet in
-                        Button {
-                            manager.iceIcon = imageSet
-                        } label: {
-                            menuItem(for: imageSet)
-                        }
-                        .tag(imageSet)
-                    }
-                    if let lastCustomIceIcon = manager.lastCustomIceIcon {
-                        Button {
-                            manager.iceIcon = lastCustomIceIcon
-                        } label: {
-                            menuItem(for: lastCustomIceIcon)
-                        }
-                        .tag(lastCustomIceIcon)
-                    }
-                }
-                .pickerStyle(.inline)
-                .labelsHidden()
-
-                Divider()
-
-                Button("Choose image…") {
-                    isImportingCustomIceIcon = true
-                }
-            } title: {
-                menuItem(for: manager.iceIcon)
-            }
-            .annotation("Choose a custom icon to show in the menu bar")
-            .fileImporter(
-                isPresented: $isImportingCustomIceIcon,
-                allowedContentTypes: [.image]
-            ) { result in
-                do {
-                    let url = try result.get()
-                    if url.startAccessingSecurityScopedResource() {
-                        defer { url.stopAccessingSecurityScopedResource() }
-                        let data = try Data(contentsOf: url)
-                        manager.iceIcon = ControlItemImageSet(name: .custom, image: .data(data))
-                    }
-                } catch {
-                    presentedError = LocalizedErrorWrapper(error)
-                    isPresentingError = true
-                }
-            }
-
-            if case .custom = manager.iceIcon.name {
-                Toggle("Apply system theme to icon", isOn: manager.bindings.customIceIconIsTemplate)
-                    .annotation("Display the icon as a monochrome image matching the system appearance")
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var iceBarOptions: some View {
-        useIceBar
-        if manager.useIceBar {
-            iceBarLocationPicker
-        }
-    }
-
-    @ViewBuilder
-    private var useIceBar: some View {
-        Toggle("Use Ice Bar", isOn: manager.bindings.useIceBar)
-            .annotation("Show hidden menu bar items in a separate bar below the menu bar")
-    }
-
-    @ViewBuilder
-    private var iceBarLocationPicker: some View {
-        IcePicker("Location", selection: manager.bindings.iceBarLocation) {
-            ForEach(IceBarLocation.allCases) { location in
-                Text(location.localized).tag(location)
-            }
-        }
-        .annotation {
-            switch manager.iceBarLocation {
-            case .dynamic:
-                Text("The Ice Bar's location changes based on context")
-            case .mousePointer:
-                Text("The Ice Bar is centered below the mouse pointer")
-            case .iceIcon:
-                Text("The Ice Bar is centered below the Ice icon")
-            }
-        }
     }
 
     @ViewBuilder
@@ -216,12 +95,6 @@ struct GeneralSettingsPane: View {
     private var showOnHover: some View {
         Toggle("Show on hover", isOn: manager.bindings.showOnHover)
             .annotation("Hover over an empty area of the menu bar to show hidden menu bar items")
-    }
-
-    @ViewBuilder
-    private var showOnScroll: some View {
-        Toggle("Show on scroll", isOn: manager.bindings.showOnScroll)
-            .annotation("Scroll or swipe in the menu bar to toggle hidden menu bar items")
     }
 
     @ViewBuilder

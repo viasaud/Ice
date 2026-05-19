@@ -101,10 +101,6 @@ final class MenuBarSearchPanel: NSPanel {
         // Important that we set the navigation state before updating the cache.
         appState.navigationState.isSearchPresented = true
 
-        if ScreenCapture.cachedCheckPermissions() {
-            await appState.imageCache.updateCache()
-        }
-
         let hostingView = MenuBarSearchHostingView(appState: appState, panel: self)
         hostingView.setFrameSize(hostingView.intrinsicContentSize)
         setFrame(hostingView.frame, display: true)
@@ -357,9 +353,8 @@ private struct SettingsButton: View {
 
     var body: some View {
         BottomBarButton(action: action) {
-            Image(.iceCubeStroke)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
+            Image(systemName: "gearshape")
+                .font(.system(size: 16, weight: .medium))
                 .frame(width: 18, height: 18)
                 .foregroundStyle(.secondary)
                 .padding(2)

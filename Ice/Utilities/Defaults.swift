@@ -141,20 +141,12 @@ extension Defaults {
         // MARK: General Settings
 
         case showIceIcon = "ShowIceIcon"
-        case iceIcon = "IceIcon"
-        case customIceIconIsTemplate = "CustomIceIconIsTemplate"
-        case useIceBar = "UseIceBar"
         case showOnClick = "ShowOnClick"
         case showOnHover = "ShowOnHover"
-        case showOnScroll = "ShowOnScroll"
         case itemSpacingOffset = "ItemSpacingOffset"
         case autoRehide = "AutoRehide"
         case rehideStrategy = "RehideStrategy"
         case rehideInterval = "RehideInterval"
-
-        // MARK: Hotkey Settings
-
-        case hotkeys = "Hotkeys"
 
         // MARK: Advanced Settings
 
@@ -167,35 +159,14 @@ extension Defaults {
         case showAllSectionsOnUserDrag = "ShowAllSectionsOnUserDrag"
         case showContextMenuOnRightClick = "ShowContextMenuOnRightClick"
 
-        // MARK: Menu Bar Appearance Settings
-
-        case menuBarAppearanceConfigurationV2 = "MenuBarAppearanceConfigurationV2"
-
-        // MARK: Ice Bar Settings
-
-        case iceBarLocation = "IceBarLocation"
-        case iceBarPinnedLocation = "IceBarPinnedLocation"
-
         // MARK: Migration
 
         case hasMigrated0_8_0 = "hasMigrated0_8_0"
         case hasMigrated0_10_0 = "hasMigrated0_10_0"
         case hasMigrated0_10_1 = "hasMigrated0_10_1"
-        case hasMigrated0_11_10 = "hasMigrated0_11_10"
 
         // MARK: Deprecated
 
         case sections = "Sections"
-        case menuBarHasBorder = "MenuBarHasBorder"
-        case menuBarBorderColor = "MenuBarBorderColor"
-        case menuBarBorderWidth = "MenuBarBorderWidth"
-        case menuBarHasShadow = "MenuBarHasShadow"
-        case menuBarTintKind = "MenuBarTintKind"
-        case menuBarTintColor = "MenuBarTintColor"
-        case menuBarTintGradient = "MenuBarTintGradient"
-        case menuBarShapeKind = "MenuBarShapeKind"
-        case menuBarFullShapeInfo = "MenuBarFullShapeInfo"
-        case menuBarSplitShapeInfo = "MenuBarSplitShapeInfo"
-        case menuBarAppearanceConfiguration = "MenuBarAppearanceConfiguration"
     }
 }

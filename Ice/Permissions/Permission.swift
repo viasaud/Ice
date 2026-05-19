@@ -6,7 +6,6 @@
 import AXSwift
 import Combine
 import Cocoa
-import ScreenCaptureKit
 
 // MARK: - Permission
 
@@ -65,15 +64,25 @@ class Permission: ObservableObject, Identifiable {
 
     /// Sets up the internal observers for the permission.
     private func configureCancellables() {
-        timerCancellable = Timer.publish(every: 1, on: .main, in: .default)
+        timerCancellable?.cancel()
+        timerCancellable = Timer.publish(every: 2, on: .main, in: .default)
             .autoconnect()
             .merge(with: Just(.now))
-            .sink { [weak self] _ in
-                guard let self else {
-                    return
-                }
-                hasPermission = check()
+            .map { [weak self] _ in
+                self?.check() ?? false
             }
+            .removeDuplicates()
+            .sink { [weak self] hasPermission in
+                self?.hasPermission = hasPermission
+            }
+    }
+
+    /// Refreshes the stored permission state immediately.
+    func refresh() {
+        let hasPermission = check()
+        if self.hasPermission != hasPermission {
+            self.hasPermission = hasPermission
+        }
     }
 
     /// Performs the request and opens the System Settings app to the appropriate pane.
@@ -130,28 +139,6 @@ final class AccessibilityPermission: Permission {
             },
             request: {
                 checkIsProcessTrusted(prompt: true)
-            }
-        )
-    }
-}
-
-// MARK: - ScreenRecordingPermission
-
-final class ScreenRecordingPermission: Permission {
-    init() {
-        super.init(
-            title: "Screen Recording",
-            details: [
-                "Edit the menu bar's appearance.",
-                "Display images of individual menu bar items.",
-            ],
-            isRequired: false,
-            settingsURL: URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"),
-            check: {
-                ScreenCapture.checkPermissions()
-            },
-            request: {
-                ScreenCapture.requestPermissions()
             }
         )
     }

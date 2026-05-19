@@ -12,9 +12,6 @@ final class AppState: ObservableObject {
     /// A Boolean value that indicates whether the active space is fullscreen.
     @Published private(set) var isActiveSpaceFullscreen = Bridging.isSpaceFullscreen(Bridging.activeSpaceID)
 
-    /// Manager for the menu bar's appearance.
-    private(set) lazy var appearanceManager = MenuBarAppearanceManager(appState: self)
-
     /// Manager for events received by the app.
     private(set) lazy var eventManager = EventManager(appState: self)
 
@@ -38,9 +35,6 @@ final class AppState: ObservableObject {
 
     /// Model for app-wide navigation.
     let navigationState = AppNavigationState()
-
-    /// The app's hotkey registry.
-    nonisolated let hotkeyRegistry = HotkeyRegistry()
 
     /// The app's delegate.
     private(set) weak var appDelegate: AppDelegate?
@@ -142,10 +136,8 @@ final class AppState: ObservableObject {
             else {
                 return
             }
-            Task.detached {
-                if ScreenCapture.cachedCheckPermissions(reset: true) {
-                    await self.imageCache.updateCacheWithoutChecks(sections: MenuBarSection.Name.allCases)
-                }
+            Task {
+                await self.imageCache.updateCacheWithoutChecks(sections: MenuBarSection.Name.allCases)
             }
         }
         .store(in: &c)
@@ -173,7 +165,6 @@ final class AppState: ObservableObject {
         configureCancellables()
         permissionsManager.stopAllChecks()
         menuBarManager.performSetup()
-        appearanceManager.performSetup()
         eventManager.performSetup()
         settingsManager.performSetup()
         itemManager.performSetup()

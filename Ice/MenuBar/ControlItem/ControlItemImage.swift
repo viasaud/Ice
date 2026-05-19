@@ -9,40 +9,16 @@ import Cocoa
 enum ControlItemImage: Codable, Hashable {
     /// An image created from drawing code built into the app.
     case builtin(_ name: ImageBuiltinName)
-    /// A system symbol image.
-    case symbol(_ name: String)
-    /// An image in an asset catalog.
-    case catalog(_ name: String)
-    /// An image stored as data.
-    case data(_ data: Data)
 
     /// A Cocoa representation of this image.
     @MainActor
-    func nsImage(for appState: AppState) -> NSImage? {
+    func nsImage(for _: AppState) -> NSImage? {
         switch self {
         case .builtin(let name):
             return switch name {
             case .chevronLarge: StaticBuiltins.Chevron.large
             case .chevronSmall: StaticBuiltins.Chevron.small
             }
-        case .symbol(let name):
-            let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)
-            image?.isTemplate = true
-            return image
-        case .catalog(let name):
-            guard let originalImage = NSImage(named: name) else {
-                return nil
-            }
-            let originalWidth = originalImage.size.width
-            let originalHeight = originalImage.size.height
-            let ratio = max(originalWidth / 25, originalHeight / 17)
-            let newSize = CGSize(width: originalWidth / ratio, height: originalHeight / ratio)
-            return originalImage.resized(to: newSize)
-        case .data(let data):
-            let image = NSImage(data: data)
-            let generalSettingsManager = appState.settingsManager.generalSettingsManager
-            image?.isTemplate = generalSettingsManager.customIceIconIsTemplate
-            return image
         }
     }
 }

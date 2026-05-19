@@ -65,6 +65,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
 
+    func applicationDidBecomeActive(_ notification: Notification) {
+        appState?.permissionsManager.refreshAllPermissions()
+    }
+
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
         return true
     }

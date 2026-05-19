@@ -165,6 +165,9 @@ struct AdvancedSettingsPane: View {
             }
             .frame(height: 22)
         }
+        .onAppear {
+            appState.permissionsManager.refreshAllPermissions()
+        }
     }
 }
 

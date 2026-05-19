@@ -12,24 +12,6 @@ final class GeneralSettingsManager: ObservableObject {
     /// should be shown.
     @Published var showIceIcon = true
 
-    /// An icon to show in the menu bar, with a different image
-    /// for when items are visible or hidden.
-    @Published var iceIcon: ControlItemImageSet = .defaultIceIcon
-
-    /// The last user-selected custom Ice icon.
-    @Published var lastCustomIceIcon: ControlItemImageSet?
-
-    /// A Boolean value that indicates whether custom Ice icons
-    /// should be rendered as template images.
-    @Published var customIceIconIsTemplate = false
-
-    /// A Boolean value that indicates whether to show hidden items
-    /// in a separate bar below the menu bar.
-    @Published var useIceBar = false
-
-    /// The location where the Ice Bar appears.
-    @Published var iceBarLocation: IceBarLocation = .dynamic
-
     /// A Boolean value that indicates whether the hidden section
     /// should be shown when the mouse pointer clicks in an empty
     /// area of the menu bar.
@@ -39,11 +21,6 @@ final class GeneralSettingsManager: ObservableObject {
     /// should be shown when the mouse pointer hovers over an
     /// empty area of the menu bar.
     @Published var showOnHover = false
-
-    /// A Boolean value that indicates whether the hidden section
-    /// should be shown or hidden when the user scrolls in the
-    /// menu bar.
-    @Published var showOnScroll = true
 
     /// The offset to apply to the menu bar item spacing and padding.
     @Published var itemSpacingOffset: Double = 0
@@ -58,12 +35,6 @@ final class GeneralSettingsManager: ObservableObject {
     /// A time interval for the auto-rehide feature when its rule
     /// is ``RehideStrategy/timed``.
     @Published var rehideInterval: TimeInterval = 15
-
-    /// Encoder for properties.
-    private let encoder = JSONEncoder()
-
-    /// Decoder for properties.
-    private let decoder = JSONDecoder()
 
     /// Storage for internal observers.
     private var cancellables = Set<AnyCancellable>()
@@ -82,36 +53,18 @@ final class GeneralSettingsManager: ObservableObject {
 
     private func loadInitialState() {
         Defaults.ifPresent(key: .showIceIcon, assign: &showIceIcon)
-        Defaults.ifPresent(key: .customIceIconIsTemplate, assign: &customIceIconIsTemplate)
-        Defaults.ifPresent(key: .useIceBar, assign: &useIceBar)
         Defaults.ifPresent(key: .showOnClick, assign: &showOnClick)
         Defaults.ifPresent(key: .showOnHover, assign: &showOnHover)
-        Defaults.ifPresent(key: .showOnScroll, assign: &showOnScroll)
         Defaults.ifPresent(key: .itemSpacingOffset, assign: &itemSpacingOffset)
         Defaults.ifPresent(key: .autoRehide, assign: &autoRehide)
         Defaults.ifPresent(key: .rehideInterval, assign: &rehideInterval)
 
-        Defaults.ifPresent(key: .iceBarLocation) { rawValue in
-            if let location = IceBarLocation(rawValue: rawValue) {
-                iceBarLocation = location
-            }
-        }
         Defaults.ifPresent(key: .rehideStrategy) { rawValue in
             if let strategy = RehideStrategy(rawValue: rawValue) {
                 rehideStrategy = strategy
             }
         }
 
-        if let data = Defaults.data(forKey: .iceIcon) {
-            do {
-                iceIcon = try decoder.decode(ControlItemImageSet.self, from: data)
-            } catch {
-                Logger.generalSettingsManager.error("Error decoding Ice icon: \(error)")
-            }
-            if case .custom = iceIcon.name {
-                lastCustomIceIcon = iceIcon
-            }
-        }
     }
 
     private func configureCancellables() {
@@ -121,45 +74,6 @@ final class GeneralSettingsManager: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { showIceIcon in
                 Defaults.set(showIceIcon, forKey: .showIceIcon)
-            }
-            .store(in: &c)
-
-        $iceIcon
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] iceIcon in
-                guard let self else {
-                    return
-                }
-                if case .custom = iceIcon.name {
-                    lastCustomIceIcon = iceIcon
-                }
-                do {
-                    let data = try encoder.encode(iceIcon)
-                    Defaults.set(data, forKey: .iceIcon)
-                } catch {
-                    Logger.generalSettingsManager.error("Error encoding Ice icon: \(error)")
-                }
-            }
-            .store(in: &c)
-
-        $customIceIconIsTemplate
-            .receive(on: DispatchQueue.main)
-            .sink { isTemplate in
-                Defaults.set(isTemplate, forKey: .customIceIconIsTemplate)
-            }
-            .store(in: &c)
-
-        $useIceBar
-            .receive(on: DispatchQueue.main)
-            .sink { useIceBar in
-                Defaults.set(useIceBar, forKey: .useIceBar)
-            }
-            .store(in: &c)
-
-        $iceBarLocation
-            .receive(on: DispatchQueue.main)
-            .sink { location in
-                Defaults.set(location.rawValue, forKey: .iceBarLocation)
             }
             .store(in: &c)
 
@@ -174,13 +88,6 @@ final class GeneralSettingsManager: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { showOnHover in
                 Defaults.set(showOnHover, forKey: .showOnHover)
-            }
-            .store(in: &c)
-
-        $showOnScroll
-            .receive(on: DispatchQueue.main)
-            .sink { showOnScroll in
-                Defaults.set(showOnScroll, forKey: .showOnScroll)
             }
             .store(in: &c)
 

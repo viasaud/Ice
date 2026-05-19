@@ -54,11 +54,15 @@ struct AboutSettingsPane: View {
                         .font(.system(size: 18))
                         .foregroundStyle(.secondary)
 
+                    Text("Build \(Constants.buildString)")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.tertiary)
+
                     Text(Constants.copyrightString)
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(.tertiary)
 
-                    Text("Personal macOS utility fork")
+                    Text("Personal macOS 26 Tahoe utility fork")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(.secondary)
                 }

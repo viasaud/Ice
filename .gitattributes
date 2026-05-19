@@ -1,1 +1,33 @@
-*.rtf linguist-vendored
+* text=auto
+
+# Swift and Xcode project files
+*.swift text eol=lf
+*.pbxproj text eol=lf
+*.xcconfig text eol=lf
+*.plist text eol=lf
+*.entitlements text eol=lf
+*.strings text eol=lf
+*.stringsdict text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
+*.rb text eol=lf
+
+# Rich text/legal acknowledgements
+*.rtf text eol=lf linguist-vendored
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.icns binary
+*.pdf binary
+*.tiff binary
+*.heic binary
+*.mov binary
+*.mp4 binary
+*.car binary
+*.dSYM binary

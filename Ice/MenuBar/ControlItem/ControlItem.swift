@@ -184,37 +184,6 @@ final class ControlItem {
             }
             .store(in: &c)
 
-        statusItem.publisher(for: \.isVisible)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] isVisible in
-                guard
-                    let self,
-                    let appState,
-                    let section
-                else {
-                    return
-                }
-
-                let manager = appState.settingsManager.hotkeySettingsManager
-
-                let hotkey: Hotkey? = switch section.name {
-                case .visible: nil
-                case .hidden: manager.hotkey(withAction: .toggleHiddenSection)
-                case .alwaysHidden: manager.hotkey(withAction: .toggleAlwaysHiddenSection)
-                }
-
-                guard let hotkey else {
-                    return
-                }
-
-                if isVisible {
-                    hotkey.enable()
-                } else {
-                    hotkey.disable()
-                }
-            }
-            .store(in: &c)
-
         window?.publisher(for: \.frame)
             .sink { [weak self] frame in
                 guard
@@ -242,43 +211,6 @@ final class ControlItem {
                         addToMenuBar()
                     } else {
                         removeFromMenuBar()
-                    }
-                }
-                .store(in: &c)
-
-            appState.settingsManager.generalSettingsManager.$iceIcon
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] _ in
-                    guard let self else {
-                        return
-                    }
-                    updateStatusItem(with: state)
-                }
-                .store(in: &c)
-
-            appState.settingsManager.generalSettingsManager.$customIceIconIsTemplate
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] _ in
-                    guard let self else {
-                        return
-                    }
-                    updateStatusItem(with: state)
-                }
-                .store(in: &c)
-
-            appState.settingsManager.generalSettingsManager.$useIceBar
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] useIceBar in
-                    guard
-                        let self,
-                        let button = statusItem.button
-                    else {
-                        return
-                    }
-                    if useIceBar {
-                        button.sendAction(on: [.leftMouseDown, .rightMouseUp])
-                    } else {
-                        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
                     }
                 }
                 .store(in: &c)
@@ -329,6 +261,7 @@ final class ControlItem {
         }
         button.target = self
         button.action = #selector(performAction)
+        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
     }
 
     /// Updates the appearance of the status item using the given hiding state.
@@ -346,22 +279,9 @@ final class ControlItem {
             isVisible = true
             // Enable the cell, as it may have been previously disabled.
             button.cell?.isEnabled = true
-            let icon = appState.settingsManager.generalSettingsManager.iceIcon
-            // We can usually just set the image directly from the icon.
             button.image = switch state {
-            case .hideItems: icon.hidden.nsImage(for: appState)
-            case .showItems: icon.visible.nsImage(for: appState)
-            }
-            if
-                case .custom = icon.name,
-                let originalImage = button.image
-            {
-                // Custom icons need to be resized to fit inside the button.
-                let originalWidth = originalImage.size.width
-                let originalHeight = originalImage.size.height
-                let ratio = max(originalWidth / 25, originalHeight / 17)
-                let newSize = CGSize(width: originalWidth / ratio, height: originalHeight / ratio)
-                button.image = originalImage.resized(to: newSize)
+            case .hideItems: ControlItemImage.builtin(.chevronLarge).nsImage(for: appState)
+            case .showItems: ControlItemImage.builtin(.chevronLarge).nsImage(for: appState)
             }
         case .hidden, .alwaysHidden:
             switch state {
@@ -419,11 +339,6 @@ final class ControlItem {
 
     /// Creates a menu to show under the control item.
     private func createMenu(with appState: AppState) -> NSMenu {
-        func hotkey(withAction action: HotkeyAction) -> Hotkey? {
-            let hotkeySettingsManager = appState.settingsManager.hotkeySettingsManager
-            return hotkeySettingsManager.hotkey(withAction: action)
-        }
-
         let menu = NSMenu(title: "Ice")
 
         let settingsItem = NSMenuItem(
@@ -442,13 +357,6 @@ final class ControlItem {
             keyEquivalent: ""
         )
         searchItem.target = self
-        if
-            let hotkey = hotkey(withAction: .searchMenuBarItems),
-            let keyCombination = hotkey.keyCombination
-        {
-            searchItem.keyEquivalent = keyCombination.key.keyEquivalent
-            searchItem.keyEquivalentModifierMask = keyCombination.modifiers.nsEventFlags
-        }
         menu.addItem(searchItem)
 
         menu.addItem(.separator())
@@ -470,26 +378,6 @@ final class ControlItem {
             )
             item.target = self
             Self.sectionStorage.weakSet(section, for: item)
-            switch name {
-            case .visible:
-                break
-            case .hidden:
-                if
-                    let hotkey = hotkey(withAction: .toggleHiddenSection),
-                    let keyCombination = hotkey.keyCombination
-                {
-                    item.keyEquivalent = keyCombination.key.keyEquivalent
-                    item.keyEquivalentModifierMask = keyCombination.modifiers.nsEventFlags
-                }
-            case .alwaysHidden:
-                if
-                    let hotkey = hotkey(withAction: .toggleAlwaysHiddenSection),
-                    let keyCombination = hotkey.keyCombination
-                {
-                    item.keyEquivalent = keyCombination.key.keyEquivalent
-                    item.keyEquivalentModifierMask = keyCombination.modifiers.nsEventFlags
-                }
-            }
             menu.addItem(item)
         }
 

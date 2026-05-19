@@ -34,9 +34,6 @@ final class MenuBarManager: ObservableObject {
     /// The managed sections in the menu bar.
     private(set) var sections = [MenuBarSection]()
 
-    /// The panel that contains the Ice Bar interface.
-    let iceBarPanel: IceBarPanel
-
     /// The panel that contains the menu bar search interface.
     let searchPanel: MenuBarSearchPanel
 
@@ -48,7 +45,6 @@ final class MenuBarManager: ObservableObject {
 
     /// Initializes a new menu bar manager instance.
     init(appState: AppState) {
-        self.iceBarPanel = IceBarPanel(appState: appState)
         self.searchPanel = MenuBarSearchPanel(appState: appState)
         self.appState = appState
     }
@@ -57,7 +53,6 @@ final class MenuBarManager: ObservableObject {
     func performSetup() {
         initializeSections()
         configureCancellables()
-        iceBarPanel.performSetup()
     }
 
     /// Performs the initial setup of the menu bar manager's sections.
@@ -223,50 +218,14 @@ final class MenuBarManager: ObservableObject {
         cancellables = c
     }
 
-    /// Updates the ``averageColorInfo`` property with the current average color
-    /// of the menu bar.
+    /// Updates the ``averageColorInfo`` property with a permission-free native
+    /// fallback color.
     func updateAverageColorInfo() {
-        guard
-            canUpdateAverageColorInfo,
-            let screen = appState?.settingsWindow?.screen
-        else {
+        guard canUpdateAverageColorInfo else {
             return
         }
 
-        let image: CGImage?
-        let source: MenuBarAverageColorInfo.Source
-
-        let windows = WindowInfo.getOnScreenWindows(excludeDesktopWindows: false)
-        let displayID = screen.displayID
-
-        if let window = WindowInfo.getMenuBarWindow(from: windows, for: displayID) {
-            var bounds = window.frame
-            bounds.size.height = 1
-            bounds.origin.x = bounds.maxX - (bounds.width / 4)
-            bounds.size.width /= 4
-
-            image = ScreenCapture.captureWindow(window.windowID, screenBounds: bounds, option: .nominalResolution)
-            source = .menuBarWindow
-        } else if let window = WindowInfo.getWallpaperWindow(from: windows, for: displayID) {
-            var bounds = window.frame
-            bounds.size.height = 1
-            bounds.origin.x = bounds.midX
-            bounds.size.width /= 2
-
-            image = ScreenCapture.captureWindow(window.windowID, screenBounds: bounds, option: .nominalResolution)
-            source = .desktopWallpaper
-        } else {
-            return
-        }
-
-        guard
-            let image,
-            let color = image.averageColor(makeOpaque: true)
-        else {
-            return
-        }
-
-        let info = MenuBarAverageColorInfo(color: color, source: source)
+        let info = MenuBarAverageColorInfo(color: NSColor.windowBackgroundColor.cgColor, source: .fallback)
 
         if averageColorInfo != info {
             averageColorInfo = info
@@ -331,16 +290,6 @@ final class MenuBarManager: ObservableObject {
     func showRightClickMenu(at point: CGPoint) {
         let menu = NSMenu(title: "Ice")
 
-        let editItem = NSMenuItem(
-            title: "Edit Menu Bar Appearance…",
-            action: #selector(showAppearanceEditorPopover),
-            keyEquivalent: ""
-        )
-        editItem.target = self
-        menu.addItem(editItem)
-
-        menu.addItem(.separator())
-
         let settingsItem = NSMenuItem(
             title: "Ice Settings…",
             action: #selector(AppDelegate.openSettingsWindow),
@@ -382,17 +331,6 @@ final class MenuBarManager: ObservableObject {
         }
     }
 
-    /// Shows the appearance editor popover, centered under the menu bar.
-    @objc private func showAppearanceEditorPopover() {
-        guard let appState else {
-            Logger.menuBarManager.error("Error showing appearance editor popover: Missing app state")
-            return
-        }
-        let panel = MenuBarAppearanceEditorPanel(appState: appState)
-        panel.orderFrontRegardless()
-        panel.showAppearanceEditorPopover()
-    }
-
     /// Returns the menu bar section with the given name.
     func section(withName name: MenuBarSection.Name) -> MenuBarSection? {
         sections.first { $0.name == name }
@@ -409,6 +347,7 @@ struct MenuBarAverageColorInfo: Hashable {
     enum Source: Hashable {
         case menuBarWindow
         case desktopWallpaper
+        case fallback
     }
 
     var color: CGColor

@@ -53,6 +53,9 @@ struct PermissionsView: View {
                 }
             }
         }
+        .onAppear {
+            permissionsManager.refreshAllPermissions()
+        }
     }
 
     @ViewBuilder

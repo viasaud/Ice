@@ -70,12 +70,6 @@ struct SettingsView: View {
         switch navigationState.settingsNavigationIdentifier {
         case .general:
             GeneralSettingsPane()
-        case .menuBarLayout:
-            MenuBarLayoutSettingsPane()
-        case .menuBarAppearance:
-            MenuBarAppearanceSettingsPane()
-        case .hotkeys:
-            HotkeysSettingsPane()
         case .advanced:
             AdvancedSettingsPane()
         case .about:
@@ -98,11 +92,8 @@ struct SettingsView: View {
     private func icon(for identifier: SettingsNavigationIdentifier) -> IconResource {
         switch identifier {
         case .general: .systemSymbol("gearshape")
-        case .menuBarLayout: .systemSymbol("rectangle.topthird.inset.filled")
-        case .menuBarAppearance: .systemSymbol("swatchpalette")
-        case .hotkeys: .systemSymbol("keyboard")
         case .advanced: .systemSymbol("gearshape.2")
-        case .about: .assetCatalog(.iceCubeStroke)
+        case .about: .systemSymbol("info.circle")
         }
     }
 }

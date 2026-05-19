@@ -21,8 +21,6 @@ final class PermissionsManager: ObservableObject {
 
     let accessibilityPermission: AccessibilityPermission
 
-    let screenRecordingPermission: ScreenRecordingPermission
-
     let allPermissions: [Permission]
 
     private(set) weak var appState: AppState?
@@ -36,10 +34,8 @@ final class PermissionsManager: ObservableObject {
     init(appState: AppState) {
         self.appState = appState
         self.accessibilityPermission = AccessibilityPermission()
-        self.screenRecordingPermission = ScreenRecordingPermission()
         self.allPermissions = [
             accessibilityPermission,
-            screenRecordingPermission,
         ]
         configureCancellables()
     }
@@ -47,10 +43,8 @@ final class PermissionsManager: ObservableObject {
     private func configureCancellables() {
         var c = Set<AnyCancellable>()
 
-        Publishers.Merge(
-            accessibilityPermission.$hasPermission.mapToVoid(),
-            screenRecordingPermission.$hasPermission.mapToVoid()
-        )
+        accessibilityPermission.$hasPermission
+        .mapToVoid()
         .receive(on: DispatchQueue.main)
         .sink { [weak self] in
             guard let self else {
@@ -67,6 +61,13 @@ final class PermissionsManager: ObservableObject {
         .store(in: &c)
 
         cancellables = c
+    }
+
+    /// Refreshes all cached permission state immediately.
+    func refreshAllPermissions() {
+        for permission in allPermissions {
+            permission.refresh()
+        }
     }
 
     /// Stops running all permissions checks.
