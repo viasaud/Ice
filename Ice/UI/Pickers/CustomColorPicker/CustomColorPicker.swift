@@ -3,17 +3,24 @@
 //  Ice
 //
 
-import Combine
 import SwiftUI
 
 struct CustomColorPicker: NSViewRepresentable {
-    final class Coordinator {
+    final class ColorWell: NSColorWell {
+        var onActivate: (() -> Void)?
+
+        override func activate(_ exclusive: Bool) {
+            onActivate?()
+            super.activate(exclusive)
+        }
+    }
+
+    @MainActor
+    final class Coordinator: NSObject {
         @Binding var selection: CGColor
 
         let supportsOpacity: Bool
         let mode: NSColorPanel.Mode
-
-        private var cancellables = Set<AnyCancellable>()
 
         init(
             selection: Binding<CGColor>,
@@ -25,59 +32,35 @@ struct CustomColorPicker: NSViewRepresentable {
             self.mode = mode
         }
 
-        func configure(with nsView: NSColorWell) {
-            var c = Set<AnyCancellable>()
-
-            nsView
-                .publisher(for: \.color)
-                .removeDuplicates()
-                .sink { [weak self] color in
-                    DispatchQueue.main.async {
-                        if self?.selection != color.cgColor {
-                            self?.selection = color.cgColor
-                        }
-                    }
+        func configure(with nsView: ColorWell) {
+            nsView.target = self
+            nsView.action = #selector(colorChanged(_:))
+            nsView.onActivate = { [weak self, weak nsView] in
+                guard
+                    let self,
+                    let nsView
+                else {
+                    return
                 }
-                .store(in: &c)
+                configureColorPanel(for: nsView)
+            }
+        }
 
-            NSColorPanel.shared
-                .publisher(for: \.isVisible)
-                .sink { [weak self, weak nsView] isVisible in
-                    guard
-                        let self,
-                        let nsView,
-                        isVisible,
-                        nsView.isActive
-                    else {
-                        return
-                    }
-                    NSColorPanel.shared.showsAlpha = supportsOpacity
-                    NSColorPanel.shared.mode = mode
-                    if let window = nsView.window {
-                        NSColorPanel.shared.level = window.level + 1
-                    }
-                    if NSColorPanel.shared.frame.origin == .zero {
-                        NSColorPanel.shared.center()
-                    }
-                }
-                .store(in: &c)
+        @objc private func colorChanged(_ sender: NSColorWell) {
+            if selection != sender.color.cgColor {
+                selection = sender.color.cgColor
+            }
+        }
 
-            NSColorPanel.shared
-                .publisher(for: \.level)
-                .sink { [weak nsView] level in
-                    guard
-                        let nsView,
-                        nsView.isActive,
-                        let window = nsView.window,
-                        level != window.level + 1
-                    else {
-                        return
-                    }
-                    NSColorPanel.shared.level = window.level + 1
-                }
-                .store(in: &c)
-
-            cancellables = c
+        private func configureColorPanel(for nsView: NSColorWell) {
+            NSColorPanel.shared.showsAlpha = supportsOpacity
+            NSColorPanel.shared.mode = mode
+            if let window = nsView.window {
+                NSColorPanel.shared.level = window.level + 1
+            }
+            if NSColorPanel.shared.frame.origin == .zero {
+                NSColorPanel.shared.center()
+            }
         }
     }
 
@@ -86,13 +69,13 @@ struct CustomColorPicker: NSViewRepresentable {
     let supportsOpacity: Bool
     let mode: NSColorPanel.Mode
 
-    func makeNSView(context: Context) -> NSColorWell {
-        let nsView = NSColorWell()
+    func makeNSView(context: Context) -> ColorWell {
+        let nsView = ColorWell()
         context.coordinator.configure(with: nsView)
         return nsView
     }
 
-    func updateNSView(_ nsView: NSColorWell, context: Context) {
+    func updateNSView(_ nsView: ColorWell, context: Context) {
         if let color = NSColor(cgColor: selection) {
             nsView.color = color
         }
@@ -113,6 +96,8 @@ struct CustomColorPicker: NSViewRepresentable {
         context: Context
     ) -> CGSize? {
         switch nsView.controlSize {
+        case .extraLarge:
+            CGSize(width: 66, height: 36)
         case .large:
             CGSize(width: 55, height: 30)
         case .regular:

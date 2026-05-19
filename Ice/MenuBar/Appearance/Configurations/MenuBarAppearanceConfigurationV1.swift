@@ -99,13 +99,13 @@ extension MenuBarAppearanceConfigurationV1 {
         hasShadow: false,
         hasBorder: false,
         isInset: true,
-        borderColor: .black,
+        borderColor: CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 1),
         borderWidth: 1,
         shapeKind: .none,
         fullShapeInfo: .default,
         splitShapeInfo: .default,
         tintKind: .none,
-        tintColor: .black,
+        tintColor: CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 1),
         tintGradient: .defaultMenuBarTint
     )
 }

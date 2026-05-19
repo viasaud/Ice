@@ -46,7 +46,7 @@ extension View {
                         .opacity(0.2)
                         .allowsHitTesting(false)
                 case .gradient:
-                    appState.appearanceManager.configuration.current.tintGradient
+                    CustomGradientView(gradient: appState.appearanceManager.configuration.current.tintGradient)
                         .opacity(0.2)
                         .allowsHitTesting(false)
                 }

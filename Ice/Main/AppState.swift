@@ -30,12 +30,6 @@ final class AppState: ObservableObject {
     /// Manager for the app's settings.
     private(set) lazy var settingsManager = SettingsManager(appState: self)
 
-    /// Manager for app updates.
-    private(set) lazy var updatesManager = UpdatesManager(appState: self)
-
-    /// Manager for user notifications.
-    private(set) lazy var userNotificationManager = UserNotificationManager(appState: self)
-
     /// Global cache for menu bar item images.
     private(set) lazy var imageCache = MenuBarItemImageCache(appState: self)
 
@@ -59,6 +53,9 @@ final class AppState: ObservableObject {
 
     /// A Boolean value that indicates whether the "ShowOnHover" feature is prevented.
     private(set) var isShowOnHoverPrevented = false
+
+    /// A Boolean value that indicates whether the app has activated before.
+    private var hasActivated = false
 
     /// Storage for internal observers.
     private var cancellables = Set<AnyCancellable>()
@@ -168,12 +165,6 @@ final class AppState: ObservableObject {
                 self?.objectWillChange.send()
             }
             .store(in: &c)
-        updatesManager.objectWillChange
-            .sink { [weak self] in
-                self?.objectWillChange.send()
-            }
-            .store(in: &c)
-
         cancellables = c
     }
 
@@ -187,8 +178,6 @@ final class AppState: ObservableObject {
         settingsManager.performSetup()
         itemManager.performSetup()
         imageCache.performSetup()
-        updatesManager.performSetup()
-        userNotificationManager.performSetup()
     }
 
     /// Assigns the app delegate to the app state.
@@ -250,12 +239,6 @@ final class AppState: ObservableObject {
 
     /// Activates the app and sets its activation policy to the given value.
     func activate(withPolicy policy: NSApplication.ActivationPolicy) {
-        // Store whether the app has previously activated inside an internal
-        // context to keep it isolated.
-        enum Context {
-            static let hasActivated = ObjectStorage<Bool>()
-        }
-
         func activate() {
             if let frontApp = NSWorkspace.shared.frontmostApplication {
                 NSRunningApplication.current.activate(from: frontApp)
@@ -265,10 +248,10 @@ final class AppState: ObservableObject {
             NSApp.setActivationPolicy(policy)
         }
 
-        if Context.hasActivated.value(for: self) == true {
+        if hasActivated {
             activate()
         } else {
-            Context.hasActivated.set(true, for: self)
+            hasActivated = true
             Logger.appState.debug("First time activating app, so going through Dock")
             // Hack to make sure the app properly activates for the first time.
             NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.dock").first?.activate()

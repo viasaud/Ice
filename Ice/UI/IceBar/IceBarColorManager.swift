@@ -6,6 +6,7 @@
 import Cocoa
 import Combine
 
+@MainActor
 final class IceBarColorManager: ObservableObject {
     @Published private(set) var colorInfo: MenuBarAverageColorInfo?
 
@@ -24,38 +25,6 @@ final class IceBarColorManager: ObservableObject {
         var c = Set<AnyCancellable>()
 
         if let iceBarPanel {
-            iceBarPanel.publisher(for: \.screen)
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] screen in
-                    guard
-                        let self,
-                        let screen,
-                        screen == .main
-                    else {
-                        return
-                    }
-                    updateWindowImage(for: screen)
-                }
-                .store(in: &c)
-
-            Publishers.CombineLatest(
-                iceBarPanel.publisher(for: \.frame),
-                iceBarPanel.publisher(for: \.isVisible)
-            )
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] frame, isVisible in
-                guard
-                    let self,
-                    let screen = iceBarPanel.screen,
-                    isVisible,
-                    screen == .main
-                else {
-                    return
-                }
-                updateColorInfo(with: frame, screen: screen)
-            }
-            .store(in: &c)
-
             Publishers.Merge4(
                 NSWorkspace.shared.notificationCenter
                     .publisher(for: NSWorkspace.activeSpaceDidChangeNotification)
@@ -72,17 +41,19 @@ final class IceBarColorManager: ObservableObject {
             )
             .receive(on: DispatchQueue.main)
             .sink { [weak self, weak iceBarPanel] in
-                guard
-                    let self,
-                    let iceBarPanel,
-                    let screen = iceBarPanel.screen,
-                    screen == .main
-                else {
-                    return
-                }
-                updateWindowImage(for: screen)
-                if iceBarPanel.isVisible {
-                    updateColorInfo(with: iceBarPanel.frame, screen: screen)
+                Task { @MainActor in
+                    guard
+                        let self,
+                        let iceBarPanel,
+                        let screen = iceBarPanel.screen,
+                        screen == .main
+                    else {
+                        return
+                    }
+                    self.updateWindowImage(for: screen)
+                    if iceBarPanel.isVisible {
+                        self.updateColorInfo(with: iceBarPanel.frame, screen: screen)
+                    }
                 }
             }
             .store(in: &c)

@@ -3,37 +3,29 @@
 //  Ice
 //
 
-import Combine
 import SwiftUI
 
 private struct WindowReader: NSViewRepresentable {
-    final class Coordinator: ObservableObject {
-        private var cancellable: AnyCancellable?
+    final class WindowObservingView: NSView {
+        var onWindowChange: @MainActor (NSWindow?) -> Void = { _ in }
 
-        func configure(for view: NSView, onWindowChange: @MainActor @escaping (NSWindow?) -> Void) {
-            cancellable = view.publisher(for: \.window).sink { window in
-                Task { @MainActor in
-                    onWindowChange(window)
-                }
-            }
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            onWindowChange(window)
         }
     }
 
     let onWindowChange: @MainActor (NSWindow?) -> Void
 
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        context.coordinator.configure(for: view) { window in
-            onWindowChange(window)
-        }
+    func makeNSView(context: Context) -> WindowObservingView {
+        let view = WindowObservingView()
+        view.onWindowChange = onWindowChange
         return view
     }
 
-    func makeCoordinator() -> Coordinator {
-        return Coordinator()
+    func updateNSView(_ nsView: WindowObservingView, context: Context) {
+        nsView.onWindowChange = onWindowChange
     }
-
-    func updateNSView(_: NSView, context: Context) { }
 }
 
 extension View {

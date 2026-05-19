@@ -6,7 +6,7 @@
 import SwiftUI
 
 /// A custom gradient for use with a ``GradientPicker``.
-struct CustomGradient: View {
+struct CustomGradient {
     /// The color stops in the gradient.
     var stops: [ColorStop]
 
@@ -36,36 +36,15 @@ struct CustomGradient: View {
         )
     }
 
-    var body: some View {
-        GeometryReader { geometry in
-            if stops.isEmpty {
-                Color.clear
-            } else {
-                Image(
-                    nsImage: NSImage(
-                        size: geometry.size,
-                        flipped: false
-                    ) { bounds in
-                        guard let nsGradient else {
-                            return false
-                        }
-                        nsGradient.draw(in: bounds, angle: 0)
-                        return true
-                    }
-                )
-            }
-        }
-    }
-
     /// Creates a gradient with the given unsorted stops.
     ///
     /// - Parameter stops: An array of color stops to sort and
     ///   assign as the gradient's color stops.
-    init(unsortedStops stops: [ColorStop]) {
+    nonisolated init(unsortedStops stops: [ColorStop]) {
         self.stops = stops.sorted { $0.location < $1.location }
     }
 
-    init() {
+    nonisolated init() {
         self.init(unsortedStops: [])
     }
 
@@ -94,6 +73,31 @@ struct CustomGradient: View {
             stop.withAlphaComponent(alpha) ?? stop
         }
         return copy
+    }
+}
+
+struct CustomGradientView: View {
+    let gradient: CustomGradient
+
+    var body: some View {
+        GeometryReader { geometry in
+            if gradient.stops.isEmpty {
+                Color.clear
+            } else {
+                Image(
+                    nsImage: NSImage(
+                        size: geometry.size,
+                        flipped: false
+                    ) { bounds in
+                        guard let nsGradient = gradient.nsGradient else {
+                            return false
+                        }
+                        nsGradient.draw(in: bounds, angle: 0)
+                        return true
+                    }
+                )
+            }
+        }
     }
 }
 

@@ -75,7 +75,7 @@ struct CustomGradientPicker: View {
                 .fill(.white.gradient.opacity(0.1))
                 .blendMode(.softLight)
         } else {
-            gradient
+            CustomGradientView(gradient: gradient)
         }
     }
 

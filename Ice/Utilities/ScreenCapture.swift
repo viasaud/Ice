@@ -29,7 +29,7 @@ enum ScreenCapture {
     /// and returning it.
     static func cachedCheckPermissions(reset: Bool = false) -> Bool {
         enum Context {
-            static var lastCheckResult: Bool?
+            nonisolated(unsafe) static var lastCheckResult: Bool?
         }
 
         if !reset {
@@ -61,14 +61,56 @@ enum ScreenCapture {
     ///   - screenBounds: The bounds to capture. Pass `nil` to capture the minimum rectangle that encloses the windows.
     ///   - option: Options that specify the image to be captured.
     static func captureWindows(_ windowIDs: [CGWindowID], screenBounds: CGRect? = nil, option: CGWindowImageOption = []) -> CGImage? {
-        let pointer = UnsafeMutablePointer<UnsafeRawPointer?>.allocate(capacity: windowIDs.count)
-        for (index, windowID) in windowIDs.enumerated() {
-            pointer[index] = UnsafeRawPointer(bitPattern: UInt(windowID))
-        }
-        guard let windowArray = CFArrayCreate(kCFAllocatorDefault, pointer, windowIDs.count, nil) else {
+        guard !windowIDs.isEmpty else {
             return nil
         }
-        return .windowListImage(from: screenBounds ?? .null, windowArray: windowArray, imageOption: option)
+
+        let captureResult = CaptureResult()
+        let semaphore = DispatchSemaphore(value: 0)
+        let finish: @Sendable () -> Void = {
+            semaphore.signal()
+        }
+
+        SCShareableContent.getExcludingDesktopWindows(false, onScreenWindowsOnly: false) { content, error in
+            guard
+                error == nil,
+                let content
+            else {
+                finish()
+                return
+            }
+
+            let windows = content.windows.filter { windowIDs.contains($0.windowID) }
+            guard
+                !windows.isEmpty,
+                let display = display(for: screenBounds, windows: windows, in: content.displays)
+            else {
+                finish()
+                return
+            }
+
+            let filter = SCContentFilter(display: display, including: windows)
+            let configuration = SCScreenshotConfiguration()
+            configuration.showsCursor = false
+            configuration.dynamicRange = .sdr
+            configuration.ignoreShadows = option.contains(.boundsIgnoreFraming)
+            if let screenBounds {
+                configuration.sourceRect = screenBounds
+            }
+
+            SCScreenshotManager.captureScreenshot(contentFilter: filter, configuration: configuration) { output, error in
+                defer {
+                    finish()
+                }
+                guard error == nil else {
+                    return
+                }
+                captureResult.image = output?.sdrImage
+            }
+        }
+
+        semaphore.wait()
+        return captureResult.image
     }
 
     /// Captures an image of a window.
@@ -80,20 +122,21 @@ enum ScreenCapture {
     static func captureWindow(_ windowID: CGWindowID, screenBounds: CGRect? = nil, option: CGWindowImageOption = []) -> CGImage? {
         captureWindows([windowID], screenBounds: screenBounds, option: option)
     }
-}
 
-/// A protocol used to suppress deprecation warnings for the `CGWindowList` screen capture APIs.
-///
-/// ScreenCaptureKit doesn't support capturing composite images of offscreen menu bar items, but
-/// this should be replaced once it does.
-private protocol WindowListImage {
-    init?(windowListFromArrayScreenBounds: CGRect, windowArray: CFArray, imageOption: CGWindowImageOption)
-}
+    /// Returns the display that best contains the requested capture.
+    private static func display(for screenBounds: CGRect?, windows: [SCWindow], in displays: [SCDisplay]) -> SCDisplay? {
+        if let screenBounds {
+            return displays.first { $0.frame.intersects(screenBounds) }
+        }
 
-private extension WindowListImage {
-    static func windowListImage(from screenBounds: CGRect, windowArray: CFArray, imageOption: CGWindowImageOption) -> Self? {
-        Self(windowListFromArrayScreenBounds: screenBounds, windowArray: windowArray, imageOption: imageOption)
+        guard let windowFrame = windows.first?.frame else {
+            return displays.first
+        }
+
+        return displays.first { $0.frame.intersects(windowFrame) } ?? displays.first
     }
 }
 
-extension CGImage: WindowListImage { }
+private final class CaptureResult: @unchecked Sendable {
+    var image: CGImage?
+}

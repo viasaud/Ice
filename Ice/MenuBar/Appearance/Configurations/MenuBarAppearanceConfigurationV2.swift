@@ -24,6 +24,7 @@ struct MenuBarAppearanceConfigurationV2: Hashable {
         }
     }
 
+    @MainActor
     var current: MenuBarAppearancePartialConfiguration {
         if isDynamic {
             switch SystemAppearance.current {
@@ -106,10 +107,10 @@ extension MenuBarAppearancePartialConfiguration {
     static let defaultConfiguration = MenuBarAppearancePartialConfiguration(
         hasShadow: false,
         hasBorder: false,
-        borderColor: .black,
+        borderColor: CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 1),
         borderWidth: 1,
         tintKind: .none,
-        tintColor: .black,
+        tintColor: CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 1),
         tintGradient: .defaultMenuBarTint
     )
 }

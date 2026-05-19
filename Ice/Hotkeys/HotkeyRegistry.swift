@@ -8,7 +8,7 @@ import Cocoa
 import Combine
 
 /// An object that manages the registration, storage, and unregistration of hotkeys.
-final class HotkeyRegistry {
+final class HotkeyRegistry: @unchecked Sendable {
     /// The event kinds that a hotkey can be registered for.
     enum EventKind {
         case keyUp
@@ -33,7 +33,7 @@ final class HotkeyRegistry {
         let modifiers: Modifiers
         let hotKeyID: EventHotKeyID
         var hotKeyRef: EventHotKeyRef?
-        let handler: () -> Void
+        let handler: @MainActor () -> Void
 
         init(
             eventKind: EventKind,
@@ -41,7 +41,7 @@ final class HotkeyRegistry {
             modifiers: Modifiers,
             hotKeyID: EventHotKeyID,
             hotKeyRef: EventHotKeyRef,
-            handler: @escaping () -> Void
+            handler: @MainActor @escaping () -> Void
         ) {
             self.eventKind = eventKind
             self.key = key
@@ -119,9 +119,9 @@ final class HotkeyRegistry {
     ///     the event kind specified by `eventKind`.
     ///
     /// - Returns: The registration's identifier on success, `nil` on failure.
-    func register(hotkey: Hotkey, eventKind: EventKind, handler: @escaping () -> Void) -> UInt32? {
+    func register(hotkey: Hotkey, eventKind: EventKind, handler: @MainActor @escaping () -> Void) -> UInt32? {
         enum Context {
-            static var currentID: UInt32 = 0
+            nonisolated(unsafe) static var currentID: UInt32 = 0
         }
 
         defer {
@@ -279,7 +279,9 @@ final class HotkeyRegistry {
         }
 
         // all checks passed; perform the event handler
-        registration.handler()
+        MainActor.assumeIsolated {
+            registration.handler()
+        }
 
         return noErr
     }

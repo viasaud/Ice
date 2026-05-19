@@ -3,7 +3,7 @@
 //  Ice
 //
 
-import AXSwift
+@preconcurrency import AXSwift
 import Combine
 import SwiftUI
 
@@ -281,7 +281,8 @@ final class MenuBarManager: ObservableObject {
         }
         let position = menuBarWindow.frame.origin
         do {
-            let uiElement = try systemWideElement.elementAtPosition(Float(position.x), Float(position.y))
+            nonisolated(unsafe) let systemElement = systemWideElement
+            let uiElement = try systemElement.elementAtPosition(Float(position.x), Float(position.y))
             return try uiElement?.role() == .menuBar
         } catch {
             return false
@@ -291,9 +292,10 @@ final class MenuBarManager: ObservableObject {
     /// Returns the frame of the application menu for the given display.
     func getApplicationMenuFrame(for displayID: CGDirectDisplayID) -> CGRect? {
         let displayBounds = CGDisplayBounds(displayID)
+        nonisolated(unsafe) let systemElement = systemWideElement
 
         guard
-            let menuBar = try? systemWideElement.elementAtPosition(Float(displayBounds.origin.x), Float(displayBounds.origin.y)),
+            let menuBar = try? systemElement.elementAtPosition(Float(displayBounds.origin.x), Float(displayBounds.origin.y)),
             let role = try? menuBar.role(),
             role == .menuBar,
             let items: [UIElement] = try? menuBar.arrayAttribute(.children)?.filter({ (try? $0.attribute(.enabled)) == true })

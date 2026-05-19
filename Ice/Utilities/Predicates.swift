@@ -120,9 +120,11 @@ extension Predicates where Input == MenuBarItem {
 // MARK: - Control Item Predicates
 
 extension Predicates where Input == NSLayoutConstraint {
+    @MainActor
     static func controlItemConstraint(button: NSStatusBarButton) -> NonThrowingPredicate {
-        predicate { constraint in
-            constraint.secondItem === button.superview
+        let buttonSuperview = button.superview
+        return predicate { constraint in
+            constraint.secondItem === buttonSuperview
         }
     }
 }

@@ -159,34 +159,31 @@ final class MenuBarItemSpacingManager {
 
         var failedApps = [String]()
 
-        await withTaskGroup(of: Void.self) { group in
-            for pid in pids {
-                guard
-                    let app = NSRunningApplication(processIdentifier: pid),
-                    app.bundleIdentifier != "com.apple.controlcenter", // ControlCenter handles its own relaunch, so skip it.
-                    app != .current
-                else {
-                    break
+        for pid in pids {
+            guard
+                let app = NSRunningApplication(processIdentifier: pid),
+                app.bundleIdentifier != "com.apple.controlcenter", // ControlCenter handles its own relaunch, so skip it.
+                app != .current
+            else {
+                continue
+            }
+
+            do {
+                try await relaunchApp(app)
+            } catch {
+                guard let name = app.localizedName else {
+                    continue
                 }
-                group.addTask { @MainActor in
-                    do {
-                        try await self.relaunchApp(app)
-                    } catch {
-                        guard let name = app.localizedName else {
-                            return
-                        }
-                        if app.bundleIdentifier == "com.apple.Spotlight" {
-                            // Spotlight automatically relaunches, so only consider it a failure if it never quit.
-                            if
-                                let latestSpotlightInstance = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Spotlight").first,
-                                latestSpotlightInstance.processIdentifier == app.processIdentifier
-                            {
-                                failedApps.append(name)
-                            }
-                        } else {
-                            failedApps.append(name)
-                        }
+                if app.bundleIdentifier == "com.apple.Spotlight" {
+                    // Spotlight automatically relaunches, so only consider it a failure if it never quit.
+                    if
+                        let latestSpotlightInstance = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Spotlight").first,
+                        latestSpotlightInstance.processIdentifier == app.processIdentifier
+                    {
+                        failedApps.append(name)
                     }
+                } else {
+                    failedApps.append(name)
                 }
             }
         }

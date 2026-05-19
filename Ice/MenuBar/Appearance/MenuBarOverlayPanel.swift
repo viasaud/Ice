@@ -36,7 +36,7 @@ final class MenuBarOverlayPanel: NSPanel {
         ///   - flag: The update flag to set the task for.
         ///   - timeout: The timeout of the task.
         ///   - operation: The operation for the task to perform.
-        func setTask(for flag: UpdateFlag, timeout: Duration, operation: @escaping () async throws -> Void) {
+        func setTask(for flag: UpdateFlag, timeout: Duration, operation: @escaping @Sendable () async throws -> Void) {
             cancelTask(for: flag)
             tasks[flag] = Task.detached(timeout: timeout) {
                 try await operation()
@@ -121,7 +121,9 @@ final class MenuBarOverlayPanel: NSPanel {
                 updateTaskContext.setTask(for: .desktopWallpaper, timeout: .seconds(5)) {
                     while true {
                         try Task.checkCancellation()
-                        self.insertUpdateFlag(.desktopWallpaper)
+                        await MainActor.run {
+                            self.insertUpdateFlag(.desktopWallpaper)
+                        }
                         try await Task.sleep(for: .seconds(1))
                     }
                 }
@@ -150,9 +152,13 @@ final class MenuBarOverlayPanel: NSPanel {
                 var hasDoneInitialUpdate = false
                 while true {
                     try Task.checkCancellation()
+                    let latestFrame = await appState.menuBarManager.getApplicationMenuFrame(for: displayID)
+                    let applicationMenuFrame = await MainActor.run {
+                        self.applicationMenuFrame
+                    }
                     guard
-                        let latestFrame = appState.menuBarManager.getApplicationMenuFrame(for: displayID),
-                        latestFrame != self.applicationMenuFrame
+                        let latestFrame,
+                        latestFrame != applicationMenuFrame
                     else {
                         if hasDoneInitialUpdate {
                             try await Task.sleep(for: .seconds(1))
@@ -161,7 +167,9 @@ final class MenuBarOverlayPanel: NSPanel {
                         }
                         continue
                     }
-                    self.insertUpdateFlag(.applicationMenuFrame)
+                    await MainActor.run {
+                        self.insertUpdateFlag(.applicationMenuFrame)
+                    }
                     hasDoneInitialUpdate = true
                 }
             }

@@ -6,38 +6,9 @@
 import SwiftUI
 
 struct AboutSettingsPane: View {
-    @EnvironmentObject var appState: AppState
-    @Environment(\.openURL) private var openURL
-
-    private var updatesManager: UpdatesManager {
-        appState.updatesManager
-    }
-
     private var acknowledgementsURL: URL {
         // swiftlint:disable:next force_unwrapping
-        Bundle.main.url(forResource: "Acknowledgements", withExtension: "pdf")!
-    }
-
-    private var contributeURL: URL {
-        // swiftlint:disable:next force_unwrapping
-        URL(string: "https://github.com/jordanbaird/Ice")!
-    }
-
-    private var issuesURL: URL {
-        contributeURL.appendingPathComponent("issues")
-    }
-
-    private var donateURL: URL {
-        // swiftlint:disable:next force_unwrapping
-        URL(string: "https://icemenubar.app/Donate")!
-    }
-
-    private var lastUpdateCheckString: String {
-        if let date = updatesManager.lastUpdateCheckDate {
-            date.formatted(date: .abbreviated, time: .standard)
-        } else {
-            "Never"
-        }
+        Bundle.main.url(forResource: "Acknowledgements", withExtension: "rtf")!
     }
 
     var body: some View {
@@ -57,9 +28,6 @@ struct AboutSettingsPane: View {
 
             Spacer(minLength: 0)
                 .frame(maxHeight: 20)
-
-            updatesSection
-                .layoutPriority(1)
         }
         .scrollDisabled(true)
         .frame(maxHeight: 500)
@@ -89,48 +57,12 @@ struct AboutSettingsPane: View {
                     Text(Constants.copyrightString)
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(.tertiary)
+
+                    Text("Personal macOS utility fork")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.secondary)
                 }
             }
-        }
-    }
-
-    @ViewBuilder
-    private var updatesSection: some View {
-        IceSection(options: .hasDividers) {
-            automaticallyCheckForUpdates
-            automaticallyDownloadUpdates
-            if updatesManager.canCheckForUpdates {
-                checkForUpdates
-            }
-        }
-        .frame(maxWidth: 600)
-    }
-
-    @ViewBuilder
-    private var automaticallyCheckForUpdates: some View {
-        Toggle(
-            "Automatically check for updates",
-            isOn: updatesManager.bindings.automaticallyChecksForUpdates
-        )
-    }
-
-    @ViewBuilder
-    private var automaticallyDownloadUpdates: some View {
-        Toggle(
-            "Automatically download updates",
-            isOn: updatesManager.bindings.automaticallyDownloadsUpdates
-        )
-    }
-
-    @ViewBuilder
-    private var checkForUpdates: some View {
-        HStack {
-            Button("Check for Updates") {
-                updatesManager.checkForUpdates()
-            }
-            Spacer()
-            Text("Last checked: \(lastUpdateCheckString)")
-                .font(.caption)
         }
     }
 
@@ -143,15 +75,6 @@ struct AboutSettingsPane: View {
             Spacer()
             Button("Acknowledgements") {
                 NSWorkspace.shared.open(acknowledgementsURL)
-            }
-            Button("Contribute") {
-                openURL(contributeURL)
-            }
-            Button("Report a Bug") {
-                openURL(issuesURL)
-            }
-            Button("Support Ice", systemImage: "heart.circle.fill") {
-                openURL(donateURL)
             }
         }
         .padding(8)

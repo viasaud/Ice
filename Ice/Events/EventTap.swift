@@ -3,7 +3,7 @@
 //  Ice
 //
 
-import Cocoa
+@preconcurrency import Cocoa
 
 /// A type that receives system events from various locations within the
 /// event stream.
@@ -84,7 +84,7 @@ final class EventTap {
 
     private let runLoop = CFRunLoopGetCurrent()
     private let mode: CFRunLoopMode = .commonModes
-    private nonisolated let callback: (EventTap, CGEventTapProxy, CGEventType, CGEvent) -> Unmanaged<CGEvent>?
+    private let callback: @MainActor (EventTap, CGEventTapProxy, CGEventType, CGEvent) -> Unmanaged<CGEvent>?
 
     private var machPort: CFMachPort?
     private var source: CFRunLoopSource?
@@ -155,8 +155,11 @@ final class EventTap {
         type: CGEventType,
         event: CGEvent
     ) -> Unmanaged<CGEvent>? {
-        let callback = eventTap.callback
-        return callback(eventTap, proxy, type, event)
+        nonisolated(unsafe) let unsafeProxy = proxy
+        nonisolated(unsafe) let unsafeEvent = event
+        return MainActor.assumeIsolated {
+            eventTap.callback(eventTap, unsafeProxy, type, unsafeEvent)
+        }
     }
 
     private static func createTapMachPort(

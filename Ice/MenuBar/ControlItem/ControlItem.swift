@@ -127,12 +127,14 @@ final class ControlItem {
 
     /// Removes the status item without clearing its stored position.
     deinit {
-        // Removing the status item has the unwanted side effect of deleting
-        // the preferredPosition. Cache and restore it.
-        let autosaveName = statusItem.autosaveName as String
-        let cached = StatusItemDefaults[.preferredPosition, autosaveName]
-        NSStatusBar.system.removeStatusItem(statusItem)
-        StatusItemDefaults[.preferredPosition, autosaveName] = cached
+        MainActor.assumeIsolated {
+            // Removing the status item has the unwanted side effect of deleting
+            // the preferredPosition. Cache and restore it.
+            let autosaveName = statusItem.autosaveName as String
+            let cached = StatusItemDefaults[.preferredPosition, autosaveName]
+            NSStatusBar.system.removeStatusItem(statusItem)
+            StatusItemDefaults[.preferredPosition, autosaveName] = cached
+        }
     }
 
     /// Configures the internal observers for the control item.
@@ -493,16 +495,6 @@ final class ControlItem {
 
         menu.addItem(.separator())
 
-        let checkForUpdatesItem = NSMenuItem(
-            title: "Check for Updates…",
-            action: #selector(checkForUpdates),
-            keyEquivalent: ""
-        )
-        checkForUpdatesItem.target = self
-        menu.addItem(checkForUpdatesItem)
-
-        menu.addItem(.separator())
-
         let quitItem = NSMenuItem(
             title: "Quit Ice",
             action: #selector(NSApp.terminate),
@@ -530,14 +522,6 @@ final class ControlItem {
         Task {
             await appState.menuBarManager.searchPanel.show(on: screen)
         }
-    }
-
-    /// Opens the settings window and checks for app updates.
-    @objc private func checkForUpdates() {
-        guard let appState else {
-            return
-        }
-        appState.updatesManager.checkForUpdates()
     }
 
     /// Adds the control item to the menu bar.

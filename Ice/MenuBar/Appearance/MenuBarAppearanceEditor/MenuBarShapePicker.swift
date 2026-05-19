@@ -39,17 +39,15 @@ struct MenuBarShapePicker: View {
                 .frame(maxWidth: .infinity, alignment: .center)
         case .full:
             MenuBarFullShapeExampleView(info: appearanceManager.bindings.configuration.fullShapeInfo)
-                .equatable()
                 .foregroundStyle(colorScheme == .dark ? .primary : .secondary)
         case .split:
             MenuBarSplitShapeExampleView(info: appearanceManager.bindings.configuration.splitShapeInfo)
-                .equatable()
                 .foregroundStyle(colorScheme == .dark ? .primary : .secondary)
         }
     }
 }
 
-private struct MenuBarFullShapeExampleView: View, Equatable {
+private struct MenuBarFullShapeExampleView: View {
     @Binding var info: MenuBarFullShapeInfo
 
     var body: some View {
@@ -141,10 +139,6 @@ private struct MenuBarFullShapeExampleView: View, Equatable {
         )
     }
 
-    static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.info == rhs.info
-    }
-
     private func cgRectEdge(for edge: HorizontalEdge) -> CGRectEdge {
         switch edge {
         case .leading: .minXEdge
@@ -188,21 +182,16 @@ private struct MenuBarEndCapExampleView: View {
     }
 }
 
-private struct MenuBarSplitShapeExampleView: View, Equatable {
+private struct MenuBarSplitShapeExampleView: View {
     @Binding var info: MenuBarSplitShapeInfo
 
     var body: some View {
         HStack {
             MenuBarFullShapeExampleView(info: $info.leading)
-                .equatable()
             Divider()
                 .padding(.horizontal)
             MenuBarFullShapeExampleView(info: $info.trailing)
-                .equatable()
         }
     }
 
-    static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.info == rhs.info
-    }
 }

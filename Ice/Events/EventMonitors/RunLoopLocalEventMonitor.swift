@@ -9,7 +9,7 @@ import Combine
 final class RunLoopLocalEventMonitor {
     private let runLoop = CFRunLoopGetCurrent()
     private let mode: RunLoop.Mode
-    private let handler: (NSEvent) -> NSEvent?
+    private let handler: @MainActor (NSEvent) -> NSEvent?
     private let observer: CFRunLoopObserver
 
     /// Creates an event monitor with the given event type mask and handler.
@@ -21,7 +21,7 @@ final class RunLoopLocalEventMonitor {
     init(
         mask: NSEvent.EventTypeMask,
         mode: RunLoop.Mode,
-        handler: @escaping (_ event: NSEvent) -> NSEvent?
+        handler: @MainActor @escaping (_ event: NSEvent) -> NSEvent?
     ) {
         self.mode = mode
         self.handler = handler
@@ -31,6 +31,7 @@ final class RunLoopLocalEventMonitor {
             true,
             0
         ) { _, _ in
+            MainActor.assumeIsolated {
             var events = [NSEvent]()
 
             while let event = NSApp.nextEvent(matching: .any, until: nil, inMode: .default, dequeue: true) {
@@ -51,6 +52,7 @@ final class RunLoopLocalEventMonitor {
                 }
 
                 NSApp.postEvent(handledEvent, atStart: false)
+            }
             }
         }
     }
@@ -106,8 +108,9 @@ extension RunLoopLocalEventMonitor.RunLoopLocalEventPublisher {
 
         init(mask: NSEvent.EventTypeMask, mode: RunLoop.Mode, subscriber: S) {
             self.subscriber = subscriber
+            nonisolated(unsafe) let unsafeSubscriber = subscriber
             self.monitor = RunLoopLocalEventMonitor(mask: mask, mode: mode) { event in
-                _ = subscriber.receive(event)
+                _ = unsafeSubscriber.receive(event)
                 return event
             }
             monitor.start()

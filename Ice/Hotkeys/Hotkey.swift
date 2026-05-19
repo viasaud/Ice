@@ -63,6 +63,7 @@ extension Hotkey {
             else {
                 return nil
             }
+            let action = hotkey.action
             let id = appState.hotkeyRegistry.register(
                 hotkey: hotkey,
                 eventKind: eventKind
@@ -70,8 +71,8 @@ extension Hotkey {
                 guard let appState else {
                     return
                 }
-                Task {
-                    await hotkey.action.perform(appState: appState)
+                Task { @MainActor in
+                    await action.perform(appState: appState)
                 }
             }
             guard let id else {
