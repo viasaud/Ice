@@ -350,6 +350,10 @@ extension EventManager {
             return
         }
 
+        if !isMouseInsideMenuBar {
+            appState.allowShowOnHover()
+        }
+
         // Make sure the "ShowOnHover" feature is enabled and not prevented.
         guard
             appState.settingsManager.generalSettingsManager.showOnHover,
@@ -367,12 +371,12 @@ extension EventManager {
 
         Task {
             if hiddenSection.isHidden {
-                guard self.isMouseInsideEmptyMenuBarSpace else {
+                guard self.isMouseInsideHoverActivationRegion else {
                     return
                 }
                 try? await Task.sleep(for: .seconds(delay))
                 // Make sure the mouse is still inside.
-                guard self.isMouseInsideEmptyMenuBarSpace else {
+                guard self.isMouseInsideHoverActivationRegion else {
                     return
                 }
                 hiddenSection.show()
@@ -517,6 +521,22 @@ extension EventManager {
         !isMouseInsideApplicationMenu &&
         !isMouseInsideMenuBarItem &&
         !isMouseInsideNotch
+    }
+
+    /// A Boolean value that indicates whether the mouse pointer is in a region
+    /// that should activate the "Show on hover" behavior.
+    var isMouseInsideHoverActivationRegion: Bool {
+        guard let appState else {
+            return false
+        }
+
+        if appState.settingsManager.generalSettingsManager.useIceBar {
+            return isMouseInsideMenuBar &&
+            !isMouseInsideApplicationMenu &&
+            !isMouseInsideNotch
+        }
+
+        return isMouseInsideEmptyMenuBarSpace
     }
 
     /// A Boolean value that indicates whether the mouse pointer is within
