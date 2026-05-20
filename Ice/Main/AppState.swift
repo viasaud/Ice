@@ -30,9 +30,6 @@ final class AppState: ObservableObject {
     /// Global cache for menu bar item images.
     private(set) lazy var imageCache = MenuBarItemImageCache(appState: self)
 
-    /// Manager for menu bar item spacing.
-    let spacingManager = MenuBarItemSpacingManager()
-
     /// Model for app-wide navigation.
     let navigationState = AppNavigationState()
 
@@ -142,22 +139,22 @@ final class AppState: ObservableObject {
         }
         .store(in: &c)
 
-        menuBarManager.objectWillChange
-            .sink { [weak self] in
-                self?.objectWillChange.send()
-            }
-            .store(in: &c)
-        permissionsManager.objectWillChange
-            .sink { [weak self] in
-                self?.objectWillChange.send()
-            }
-            .store(in: &c)
-        settingsManager.objectWillChange
-            .sink { [weak self] in
-                self?.objectWillChange.send()
-            }
-            .store(in: &c)
+        forwardObjectWillChange(from: menuBarManager.objectWillChange, storingIn: &c)
+        forwardObjectWillChange(from: permissionsManager.objectWillChange, storingIn: &c)
+        forwardObjectWillChange(from: settingsManager.objectWillChange, storingIn: &c)
+
         cancellables = c
+    }
+
+    private func forwardObjectWillChange<P: Publisher>(
+        from publisher: P,
+        storingIn cancellables: inout Set<AnyCancellable>
+    ) where P.Output == Void, P.Failure == Never {
+        publisher
+            .sink { [weak self] in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
     }
 
     /// Sets up the app state.

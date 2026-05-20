@@ -8,9 +8,11 @@ import SwiftUI
 @main
 struct IceApp: App {
     @NSApplicationDelegateAdaptor var appDelegate: AppDelegate
-    @ObservedObject var appState = AppState()
+    @StateObject private var appState: AppState
 
     init() {
+        let appState = AppState()
+        self._appState = StateObject(wrappedValue: appState)
         NSSplitViewItem.swizzle()
         MigrationManager.migrateAll(appState: appState)
         appDelegate.assignAppState(appState)

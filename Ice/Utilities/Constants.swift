@@ -6,19 +6,17 @@
 import Foundation
 
 enum Constants {
-    // swiftlint:disable force_unwrapping
     /// The version string in the app's bundle.
-    static let versionString = Bundle.main.versionString!
+    static let versionString = Bundle.main.requiredVersionString
 
     /// The build string in the app's bundle.
-    static let buildString = Bundle.main.buildString!
+    static let buildString = Bundle.main.requiredBuildString
 
     /// The user-readable copyright string in the app's bundle.
-    static let copyrightString = Bundle.main.copyrightString!
+    static let copyrightString = Bundle.main.requiredCopyrightString
 
     /// The bundle identifier of the app.
-    static let bundleIdentifier = Bundle.main.bundleIdentifier!
-    // swiftlint:enable force_unwrapping
+    static let bundleIdentifier = Bundle.main.requiredBundleIdentifier
 
     /// The identifier for the settings window.
     static let settingsWindowID = "SettingsWindow"
@@ -31,4 +29,32 @@ enum Constants {
 
     /// The title for the permissions window.
     static let permissionsWindowTitle = "Permissions"
+}
+
+private extension Bundle {
+    var requiredVersionString: String {
+        requiredString(forInfoDictionaryKey: "CFBundleShortVersionString")
+    }
+
+    var requiredBuildString: String {
+        requiredString(forInfoDictionaryKey: "CFBundleVersion")
+    }
+
+    var requiredCopyrightString: String {
+        requiredString(forInfoDictionaryKey: "NSHumanReadableCopyright")
+    }
+
+    var requiredBundleIdentifier: String {
+        guard let bundleIdentifier else {
+            preconditionFailure("Missing required bundle identifier")
+        }
+        return bundleIdentifier
+    }
+
+    func requiredString(forInfoDictionaryKey key: String) -> String {
+        guard let value = object(forInfoDictionaryKey: key) as? String, !value.isEmpty else {
+            preconditionFailure("Missing required bundle string for \(key)")
+        }
+        return value
+    }
 }

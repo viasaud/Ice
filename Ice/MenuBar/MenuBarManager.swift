@@ -28,14 +28,8 @@ final class MenuBarManager: ObservableObject {
     /// Storage for internal observers.
     private var cancellables = Set<AnyCancellable>()
 
-    /// A Boolean value that indicates whether the application menus are hidden.
-    private var isHidingApplicationMenus = false
-
     /// The managed sections in the menu bar.
     private(set) var sections = [MenuBarSection]()
-
-    /// The panel that contains the menu bar search interface.
-    let searchPanel: MenuBarSearchPanel
 
     /// A Boolean value that indicates whether the manager can update its stored
     /// information for the menu bar's average color.
@@ -45,7 +39,6 @@ final class MenuBarManager: ObservableObject {
 
     /// Initializes a new menu bar manager instance.
     init(appState: AppState) {
-        self.searchPanel = MenuBarSearchPanel(appState: appState)
         self.appState = appState
     }
 
@@ -73,6 +66,7 @@ final class MenuBarManager: ObservableObject {
             MenuBarSection(name: .hidden, appState: appState),
             MenuBarSection(name: .alwaysHidden, appState: appState),
         ]
+        sections.forEach { $0.controlItem.refreshStatusItem() }
     }
 
     /// Configures the internal observers for the manager.
@@ -110,25 +104,6 @@ final class MenuBarManager: ObservableObject {
                 .store(in: &c)
         }
 
-        // Handle the `focusedApp` rehide strategy.
-        NSWorkspace.shared.publisher(for: \.frontmostApplication)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                if
-                    let self,
-                    let appState,
-                    case .focusedApp = appState.settingsManager.generalSettingsManager.rehideStrategy,
-                    let hiddenSection = section(withName: .hidden),
-                    !appState.eventManager.isMouseInsideMenuBar
-                {
-                    Task {
-                        try await Task.sleep(for: .seconds(0.1))
-                        hiddenSection.hide()
-                    }
-                }
-            }
-            .store(in: &c)
-
         appState?.settingsWindow?.publisher(for: \.isVisible)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
@@ -140,78 +115,6 @@ final class MenuBarManager: ObservableObject {
             .autoconnect()
             .sink { [weak self] _ in
                 self?.updateAverageColorInfo()
-            }
-            .store(in: &c)
-
-        // Hide application menus when a section is shown (if applicable).
-        Publishers.MergeMany(sections.map { $0.controlItem.$state })
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                guard
-                    let self,
-                    let appState
-                else {
-                    return
-                }
-
-                // Don't continue if:
-                //   * The "HideApplicationMenus" setting isn't enabled.
-                //   * The menu bar is hidden by the system.
-                //   * The active space is fullscreen.
-                //   * The settings window is visible.
-                guard
-                    appState.settingsManager.advancedSettingsManager.hideApplicationMenus,
-                    !isMenuBarHiddenBySystem,
-                    !appState.isActiveSpaceFullscreen,
-                    appState.settingsWindow?.isVisible == false
-                else {
-                    return
-                }
-
-                if sections.contains(where: { $0.controlItem.state == .showItems }) {
-                    guard let screen = NSScreen.main else {
-                        return
-                    }
-
-                    let displayID = screen.displayID
-
-                    // Get the application menu frame for the display.
-                    guard let applicationMenuFrame = getApplicationMenuFrame(for: displayID) else {
-                        return
-                    }
-
-                    // Get all items.
-                    var items = MenuBarItem.getMenuBarItems(on: displayID, onScreenOnly: false, activeSpaceOnly: true)
-
-                    // Filter the items down according to the currently enabled/shown sections.
-                    if
-                        let alwaysHiddenSection = section(withName: .alwaysHidden),
-                        alwaysHiddenSection.isEnabled
-                    {
-                        if alwaysHiddenSection.controlItem.state == .hideItems {
-                            if let alwaysHiddenControlItem = items.firstIndex(matching: .alwaysHiddenControlItem).map({ items.remove(at: $0) }) {
-                                items.trimPrefix { $0.frame.maxX <= alwaysHiddenControlItem.frame.minX }
-                            }
-                        }
-                    } else {
-                        if let hiddenControlItem = items.firstIndex(matching: .hiddenControlItem).map({ items.remove(at: $0) }) {
-                            items.trimPrefix { $0.frame.maxX <= hiddenControlItem.frame.minX }
-                        }
-                    }
-
-                    // Get the leftmost item on the screen.
-                    guard let leftmostItem = items.min(by: { $0.frame.minX < $1.frame.minX }) else {
-                        return
-                    }
-
-                    // If the minX of the item is less than or equal to the maxX of the
-                    // application menu frame, activate the app to hide the menu.
-                    if leftmostItem.frame.minX <= applicationMenuFrame.maxX {
-                        hideApplicationMenus()
-                    }
-                } else if isHidingApplicationMenus {
-                    showApplicationMenus()
-                }
             }
             .store(in: &c)
 
@@ -298,37 +201,6 @@ final class MenuBarManager: ObservableObject {
         menu.addItem(settingsItem)
 
         menu.popUp(positioning: nil, at: point, in: nil)
-    }
-
-    /// Hides the application menus.
-    func hideApplicationMenus() {
-        guard let appState else {
-            Logger.menuBarManager.error("Error hiding application menus: Missing app state")
-            return
-        }
-        Logger.menuBarManager.info("Hiding application menus")
-        appState.activate(withPolicy: .regular)
-        isHidingApplicationMenus = true
-    }
-
-    /// Shows the application menus.
-    func showApplicationMenus() {
-        guard let appState else {
-            Logger.menuBarManager.error("Error showing application menus: Missing app state")
-            return
-        }
-        Logger.menuBarManager.info("Showing application menus")
-        appState.deactivate(withPolicy: .accessory)
-        isHidingApplicationMenus = false
-    }
-
-    /// Toggles the visibility of the application menus.
-    func toggleApplicationMenus() {
-        if isHidingApplicationMenus {
-            showApplicationMenus()
-        } else {
-            hideApplicationMenus()
-        }
     }
 
     /// Returns the menu bar section with the given name.

@@ -143,20 +143,13 @@ extension Defaults {
         case showIceIcon = "ShowIceIcon"
         case showOnClick = "ShowOnClick"
         case showOnHover = "ShowOnHover"
-        case itemSpacingOffset = "ItemSpacingOffset"
-        case autoRehide = "AutoRehide"
-        case rehideStrategy = "RehideStrategy"
-        case rehideInterval = "RehideInterval"
 
         // MARK: Advanced Settings
 
-        case hideApplicationMenus = "HideApplicationMenus"
         case showSectionDividers = "ShowSectionDividers"
         case enableAlwaysHiddenSection = "EnableAlwaysHiddenSection"
         case canToggleAlwaysHiddenSection = "CanToggleAlwaysHiddenSection"
-        case showOnHoverDelay = "ShowOnHoverDelay"
         case tempShowInterval = "TempShowInterval"
-        case showAllSectionsOnUserDrag = "ShowAllSectionsOnUserDrag"
         case showContextMenuOnRightClick = "ShowContextMenuOnRightClick"
 
         // MARK: Migration

@@ -52,10 +52,40 @@ constraints, or user preferences change.
 - The Ice icon is always the built-in Chevron in this fork. Do not reintroduce
   icon picker settings, custom icon importing, or old Dot/Ellipsis/Ice Cube
   control item assets.
+- Settings are intentionally minimal and single-page in this fork. Do not
+  reintroduce settings for search menu bar items, menu bar item spacing,
+  rehide strategy/interval, acknowledgements, quit, permissions, hiding app
+  menus, or showing all sections while dragging.
+- Hidden items reveal on hover by default. Hover reveal activates instantly
+  only when the pointer is over the chevron and hides immediately
+  when the pointer leaves the menu bar. Click reveal is off by default; when
+  enabled, click-revealed items hide again using the `tempShowInterval` delay.
+- The always-hidden section can be revealed only when both "Use an
+  always-hidden section" and "Allow the always-hidden section to be revealed"
+  are enabled. If the allow setting is off, block all user reveal paths,
+  including Option-click, direct control item clicks, and context menu entries.
+- Showing all sections while command-dragging menu bar items is always enabled.
+  Keep this behavior unconditional instead of exposing it as a setting.
+- The app should open the permissions window automatically whenever required
+  Accessibility permission is missing. Do not expose permissions as a settings
+  section.
+- The permissions window should avoid a tall empty top area; keep the titlebar
+  hidden/full-content and use compact top padding.
+- Keep the permission purpose text combined into the bottom lock note, along
+  with the local/privacy wording. Do not show a separate details note inside
+  the permission card. Keep this note concise and align the lock icon cleanly
+  with the top of the note text.
+- The active About section should stay one line only: app name and version.
+- The active settings window should stay content-height fitting, dark,
+  single-page, and use a hidden titlebar while keeping the standard macOS
+  traffic-light controls.
 - Accessibility permission detection should rely on the canonical
   `AXIsProcessTrustedWithOptions` result. Do not use sticky grant state or AX
   read fallbacks because they can show "granted" when permission is actually
   revoked.
+- SwiftLint is not part of this fork's current toolchain. Do not keep orphan
+  `.swiftlint.yml` config or inline SwiftLint disable comments unless linting is
+  intentionally reintroduced through a real local/CI workflow.
 
 ## Workflow Notes
 
@@ -65,6 +95,10 @@ constraints, or user preferences change.
 - Keep app metadata and About/version notes current as part of related changes;
   do not wait for a separate user reminder when the versioning rule or visible
   app identity changes.
+- When the user asks for wording or layout changes, preserve the existing UI
+  structure and meaning unless they explicitly ask to remove or simplify it.
+  If wording is ambiguous, check the nearby UI before making destructive
+  simplifications.
 - Use `rg` for searches.
 - Use `apply_patch` for manual edits.
 - Build with:

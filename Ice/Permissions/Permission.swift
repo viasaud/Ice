@@ -129,8 +129,7 @@ final class AccessibilityPermission: Permission {
         super.init(
             title: "Accessibility",
             details: [
-                "Get real-time information about the menu bar.",
-                "Arrange menu bar items.",
+                "Reads the menu bar layout and moves items between sections.",
             ],
             isRequired: true,
             settingsURL: nil,

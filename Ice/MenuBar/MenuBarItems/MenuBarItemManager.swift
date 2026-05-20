@@ -136,6 +136,18 @@ final class MenuBarItemManager: ObservableObject {
         .otherMouseUp,
     ]
 
+    private enum Timing {
+        static let recentMovementThreshold: TimeInterval = 1
+        static let pollingInterval: Duration = .milliseconds(10)
+        static let eventReceiptTimeout: Duration = .milliseconds(50)
+        static let frameFallbackDelay: Duration = .milliseconds(50)
+        static let rehideRetryInterval: TimeInterval = 3
+    }
+
+    private enum MoveRetry {
+        static let maxAttempts = 5
+    }
+
     /// A Boolean value that indicates whether a menu bar item, or
     /// group of menu bar items is being moved.
     var isMovingItem: Bool {
@@ -148,7 +160,7 @@ final class MenuBarItemManager: ObservableObject {
         guard let lastItemMoveStartDate else {
             return false
         }
-        return Date.now.timeIntervalSince(lastItemMoveStartDate) <= 1
+        return Date.now.timeIntervalSince(lastItemMoveStartDate) <= Timing.recentMovementThreshold
     }
 
     /// A Boolean value that indicates whether the mouse has recently moved.
@@ -156,7 +168,7 @@ final class MenuBarItemManager: ObservableObject {
         guard let lastMouseMoveStartDate else {
             return false
         }
-        return Date.now.timeIntervalSince(lastMouseMoveStartDate) <= 1
+        return Date.now.timeIntervalSince(lastMouseMoveStartDate) <= Timing.recentMovementThreshold
     }
 
     /// Creates a manager with the given app state.
@@ -503,7 +515,7 @@ extension MenuBarItemManager {
             }
             while await isMovingItem {
                 try Task.checkCancellation()
-                try await Task.sleep(for: .milliseconds(10))
+                try await Task.sleep(for: Timing.pollingInterval)
             }
         }
     }
@@ -526,7 +538,7 @@ extension MenuBarItemManager {
                 if Date.now.timeIntervalSince(date) > threshold {
                     break
                 }
-                try await Task.sleep(for: .milliseconds(10))
+                try await Task.sleep(for: Timing.pollingInterval)
             }
         }
     }
@@ -740,7 +752,7 @@ extension MenuBarItemManager {
                 return nil
             }
 
-            eventTap.enable(timeout: .milliseconds(50)) {
+            eventTap.enable(timeout: Timing.eventReceiptTimeout) {
                 Logger.itemManager.error("Event tap \"\(eventTap.label)\" timed out (item: \(item.logString))")
                 eventTap.disable()
                 continuation.resume(throwing: EventError(code: .eventOperationTimeout, item: item))
@@ -751,14 +763,14 @@ extension MenuBarItemManager {
         }
     }
 
-    /// Does a lot of weird magic to make a menu bar item receive an event.
+    /// Routes an event through two tap locations so the target menu bar item receives it.
     ///
     /// - Parameters:
     ///   - event: The event to send.
     ///   - firstLocation: The first location to send the event to.
     ///   - secondLocation: The second location to send the event to.
     ///   - item: The menu bar item that the event affects.
-    private func scrombleEvent(
+    private func routeEventThroughTapBridge(
         _ event: CGEvent,
         from firstLocation: EventTap.Location,
         to secondLocation: EventTap.Location,
@@ -846,7 +858,7 @@ extension MenuBarItemManager {
 
             // Enable both taps, with a timeout on the second tap.
             eventTap1.enable()
-            eventTap2.enable(timeout: .milliseconds(50)) {
+            eventTap2.enable(timeout: Timing.eventReceiptTimeout) {
                 Logger.itemManager.error("Event tap \"\(eventTap2.label)\" timed out (item: \(item.logString))")
                 eventTap1.disable()
                 eventTap2.disable()
@@ -858,29 +870,28 @@ extension MenuBarItemManager {
         }
     }
 
-    /// Does a lot of weird magic to make a menu bar item receive an event, then
-    /// waits for the frame of the given menu bar item to change before returning.
+    /// Routes an event to a menu bar item, then waits for the item's frame to change.
     ///
     /// - Parameters:
     ///   - event: The event to send.
     ///   - firstLocation: The first location to send the event to.
     ///   - secondLocation: The second location to send the event to.
     ///   - item: The item whose frame should be observed.
-    private func scrombleEvent(
+    private func routeEventThroughTapBridge(
         _ event: CGEvent,
         from firstLocation: EventTap.Location,
         to secondLocation: EventTap.Location,
         waitingForFrameChangeOf item: MenuBarItem
     ) async throws {
         guard let currentFrame = getCurrentFrame(for: item) else {
-            try await scrombleEvent(event, from: firstLocation, to: secondLocation, item: item)
+            try await routeEventThroughTapBridge(event, from: firstLocation, to: secondLocation, item: item)
             Logger.itemManager.warning("Couldn't get menu bar item frame for \(item.logString), so using fixed delay")
             // This will be slow, but subsequent events will have a better chance of succeeding.
-            try await Task.sleep(for: .milliseconds(50))
+            try await Task.sleep(for: Timing.frameFallbackDelay)
             return
         }
-        try await scrombleEvent(event, from: firstLocation, to: secondLocation, item: item)
-        try await waitForFrameChange(of: item, initialFrame: currentFrame, timeout: .milliseconds(50))
+        try await routeEventThroughTapBridge(event, from: firstLocation, to: secondLocation, item: item)
+        try await waitForFrameChange(of: item, initialFrame: currentFrame, timeout: Timing.eventReceiptTimeout)
     }
 
     /// Waits for a menu bar item's frame to change from an initial frame.
@@ -909,7 +920,7 @@ extension MenuBarItemManager {
         } catch is FrameCheckCancellationError {
             Logger.itemManager.warning("Menu bar item frame check for \(item.logString) was cancelled, so using fixed delay")
             // This will be slow, but subsequent events will have a better chance of succeeding.
-            try await Task.sleep(for: .milliseconds(50))
+            try await Task.sleep(for: Timing.frameFallbackDelay)
         } catch is TaskTimeoutError {
             throw EventError(code: .frameCheckTimeout, item: item)
         }
@@ -962,13 +973,13 @@ extension MenuBarItemManager {
             throw EventError(code: .eventCreationFailure, item: item)
         }
 
-        try await scrombleEvent(
+        try await routeEventThroughTapBridge(
             mouseDownEvent,
             from: .pid(item.ownerPID),
             to: .sessionEventTap,
             item: item
         )
-        try await scrombleEvent(
+        try await routeEventThroughTapBridge(
             mouseUpEvent,
             from: .pid(item.ownerPID),
             to: .sessionEventTap,
@@ -1039,13 +1050,13 @@ extension MenuBarItemManager {
         lastItemMoveStartDate = .now
 
         do {
-            try await scrombleEvent(
+            try await routeEventThroughTapBridge(
                 mouseDownEvent,
                 from: .pid(item.ownerPID),
                 to: .sessionEventTap,
                 waitingForFrameChangeOf: item
             )
-            try await scrombleEvent(
+            try await routeEventThroughTapBridge(
                 mouseUpEvent,
                 from: .pid(item.ownerPID),
                 to: .sessionEventTap,
@@ -1111,9 +1122,9 @@ extension MenuBarItemManager {
             MouseCursor.show()
         }
 
-        // Item movement can occasionally fail. Retry up to a total of 5 attempts,
+        // Item movement can occasionally fail. Retry a few times,
         // throwing the last attempt's error if it fails.
-        for n in 1...5 {
+        for attempt in 1...MoveRetry.maxAttempts {
             do {
                 try await moveItemWithoutRestoringMouseLocation(item, to: destination)
                 guard let newFrame = getCurrentFrame(for: item) else {
@@ -1125,8 +1136,8 @@ extension MenuBarItemManager {
                 } else {
                     throw EventError(code: .couldNotComplete, item: item)
                 }
-            } catch where n < 5 {
-                Logger.itemManager.warning("Attempt \(n) to move \(item.logString) failed (error: \(error))")
+            } catch where attempt < MoveRetry.maxAttempts {
+                Logger.itemManager.warning("Attempt \(attempt) to move \(item.logString) failed (error: \(error))")
                 try await wakeUpItem(item)
                 Logger.itemManager.info("Retrying move of \(item.logString)")
                 continue
@@ -1307,7 +1318,7 @@ extension MenuBarItemManager {
                     do {
                         try await click(item: latest, with: mouseButton)
                     } catch {
-                        Logger.itemManager.error("ERROR: \(error)")
+                        Logger.itemManager.error("Failed to click already visible \(latest.logString) (error: \(error))")
                     }
                 }
             }
@@ -1363,13 +1374,13 @@ extension MenuBarItemManager {
                     try await slowMove(item: item, to: .leftOfItem(targetItem))
                     try await click(item: item, with: mouseButton)
                 } catch {
-                    Logger.itemManager.error("ERROR: \(error)")
+                    Logger.itemManager.error("Failed to temporarily show and click \(item.logString) (error: \(error))")
                 }
             } else {
                 do {
                     try await move(item: item, to: .leftOfItem(targetItem))
                 } catch {
-                    Logger.itemManager.error("ERROR: \(error)")
+                    Logger.itemManager.error("Failed to temporarily show \(item.logString) (error: \(error))")
                 }
             }
 
@@ -1410,12 +1421,12 @@ extension MenuBarItemManager {
 
         guard !isMouseButtonDown else {
             Logger.itemManager.debug("Mouse button is down, so waiting to rehide")
-            runTempShownItemTimer(for: 3)
+            runTempShownItemTimer(for: Timing.rehideRetryInterval)
             return
         }
         guard !tempShownItemContexts.contains(where: { $0.isShowingInterface }) else {
             Logger.itemManager.debug("Menu bar item interface is shown, so waiting to rehide")
-            runTempShownItemTimer(for: 3)
+            runTempShownItemTimer(for: Timing.rehideRetryInterval)
             return
         }
 
@@ -1449,7 +1460,7 @@ extension MenuBarItemManager {
         } else {
             tempShownItemContexts = failedContexts
             Logger.itemManager.warning("Some items failed to rehide")
-            runTempShownItemTimer(for: 3)
+            runTempShownItemTimer(for: Timing.rehideRetryInterval)
         }
     }
 
@@ -1549,7 +1560,14 @@ private enum MenuBarItemEventType {
 
 private extension CGEventField {
     /// Key to access a field that contains the event's window identifier.
-    static let windowID = CGEventField(rawValue: 0x33)! // swiftlint:disable:this force_unwrapping
+    static let windowID = requiredField(rawValue: 0x33)
+
+    private static func requiredField(rawValue: UInt32) -> CGEventField {
+        guard let field = CGEventField(rawValue: rawValue) else {
+            preconditionFailure("Missing required CGEventField for raw value \(rawValue)")
+        }
+        return field
+    }
 
     /// An array of integer event fields that can be used to compare menu bar item events.
     static let menuBarItemEventFields: [CGEventField] = [

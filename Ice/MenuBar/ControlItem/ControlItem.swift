@@ -149,31 +149,7 @@ final class ControlItem {
 
         Publishers.CombineLatest($isVisible, $state)
             .sink { [weak self] (isVisible, state) in
-                guard
-                    let self,
-                    let section
-                else {
-                    return
-                }
-                if isVisible {
-                    statusItem.length = switch section.name {
-                    case .visible: Lengths.standard
-                    case .hidden, .alwaysHidden:
-                        switch state {
-                        case .hideItems: Lengths.expanded
-                        case .showItems: Lengths.standard
-                        }
-                    }
-                    constraint?.isActive = true
-                } else {
-                    statusItem.length = 0
-                    constraint?.isActive = false
-                    if let window {
-                        var size = window.frame.size
-                        size.width = 1
-                        window.setContentSize(size)
-                    }
-                }
+                self?.updateStatusItemLength(isVisible: isVisible, state: state)
             }
             .store(in: &c)
 
@@ -308,6 +284,38 @@ final class ControlItem {
         }
     }
 
+    /// Updates the status item's menu bar footprint using the current section state.
+    private func updateStatusItemLength(isVisible: Bool, state: HidingState) {
+        guard let section else {
+            return
+        }
+        if isVisible {
+            statusItem.length = switch section.name {
+            case .visible: Lengths.standard
+            case .hidden, .alwaysHidden:
+                switch state {
+                case .hideItems: Lengths.expanded
+                case .showItems: Lengths.standard
+                }
+            }
+            constraint?.isActive = true
+        } else {
+            statusItem.length = 0
+            constraint?.isActive = false
+            if let window {
+                var size = window.frame.size
+                size.width = 1
+                window.setContentSize(size)
+            }
+        }
+    }
+
+    /// Re-applies the current state after the manager has finished creating sections.
+    func refreshStatusItem() {
+        updateStatusItem(with: state)
+        updateStatusItemLength(isVisible: isVisible, state: state)
+    }
+
     /// Performs the control item's action.
     @objc private func performAction() {
         guard
@@ -322,13 +330,18 @@ final class ControlItem {
                 statusItem.showMenu(createMenu(with: appState))
             } else if
                 NSEvent.modifierFlags == .option,
-                appState.settingsManager.advancedSettingsManager.canToggleAlwaysHiddenSection
+                canRevealAlwaysHiddenSection(with: appState)
             {
                 if let alwaysHiddenSection = appState.menuBarManager.section(withName: .alwaysHidden) {
-                    alwaysHiddenSection.toggle()
+                    alwaysHiddenSection.toggle(rehideAfter: appState.settingsManager.advancedSettingsManager.tempShowInterval)
                 }
+            } else if
+                section?.name == .alwaysHidden,
+                !canRevealAlwaysHiddenSection(with: appState)
+            {
+                return
             } else {
-                section?.toggle()
+                section?.toggle(rehideAfter: appState.settingsManager.advancedSettingsManager.tempShowInterval)
             }
         case .rightMouseUp:
             statusItem.showMenu(createMenu(with: appState))
@@ -351,18 +364,12 @@ final class ControlItem {
 
         menu.addItem(.separator())
 
-        let searchItem = NSMenuItem(
-            title: "Search Menu Bar Items",
-            action: #selector(showSearchPanel),
-            keyEquivalent: ""
-        )
-        searchItem.target = self
-        menu.addItem(searchItem)
-
-        menu.addItem(.separator())
-
         // Add menu items to toggle the hidden and always-hidden sections.
-        let sectionNames: [MenuBarSection.Name] = [.hidden, .alwaysHidden]
+        let sectionNames: [MenuBarSection.Name] = if canRevealAlwaysHiddenSection(with: appState) {
+            [.hidden, .alwaysHidden]
+        } else {
+            [.hidden]
+        }
         for name in sectionNames {
             guard
                 let section = appState.menuBarManager.section(withName: name),
@@ -396,20 +403,10 @@ final class ControlItem {
 
     /// Toggles the menu bar section associated with the given menu item.
     @objc private func toggleMenuBarSection(for menuItem: NSMenuItem) {
-        Self.sectionStorage.value(for: menuItem)?.toggle()
-    }
-
-    /// Opens the menu bar search panel.
-    @objc private func showSearchPanel() {
-        guard
-            let appState,
-            let screen = MenuBarSearchPanel.defaultScreen
-        else {
+        guard let appState else {
             return
         }
-        Task {
-            await appState.menuBarManager.searchPanel.show(on: screen)
-        }
+        Self.sectionStorage.value(for: menuItem)?.toggle(rehideAfter: appState.settingsManager.advancedSettingsManager.tempShowInterval)
     }
 
     /// Adds the control item to the menu bar.
@@ -431,6 +428,20 @@ final class ControlItem {
         let cached = StatusItemDefaults[.preferredPosition, autosaveName]
         statusItem.isVisible = false
         StatusItemDefaults[.preferredPosition, autosaveName] = cached
+    }
+
+    /// A Boolean value that indicates whether the always-hidden section can be
+    /// revealed by a user action.
+    private func canRevealAlwaysHiddenSection(with appState: AppState) -> Bool {
+        guard
+            let alwaysHiddenSection = appState.menuBarManager.section(withName: .alwaysHidden),
+            alwaysHiddenSection.isEnabled
+        else {
+            return false
+        }
+
+        let advancedManager = appState.settingsManager.advancedSettingsManager
+        return advancedManager.enableAlwaysHiddenSection && advancedManager.canToggleAlwaysHiddenSection
     }
 }
 

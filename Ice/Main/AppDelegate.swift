@@ -47,14 +47,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard !appState.isPreview else {
                 return
             }
-            // If we have the required permissions, set up the shared app state.
-            // Otherwise, open the permissions window.
-            switch appState.permissionsManager.permissionsState {
-            case .hasAllPermissions, .hasRequiredPermissions:
+            if self.hasRequiredPermissions(in: appState) {
                 appState.performSetup()
-            case .missingPermissions:
-                appState.activate(withPolicy: .regular)
-                appState.openPermissionsWindow()
+            } else {
+                self.openPermissionsWindow(for: appState)
             }
         }
     }
@@ -66,7 +62,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
-        appState?.permissionsManager.refreshAllPermissions()
+        guard
+            let appState,
+            !appState.isPreview
+        else {
+            return
+        }
+        appState.permissionsManager.refreshAllPermissions()
+        if !hasRequiredPermissions(in: appState) {
+            openPermissionsWindow(for: appState)
+        }
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
@@ -92,9 +97,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         // Small delay makes this more reliable.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            appState.activate(withPolicy: .regular)
-            appState.openSettingsWindow()
+            appState.permissionsManager.refreshAllPermissions()
+            if self.hasRequiredPermissions(in: appState) {
+                appState.activate(withPolicy: .regular)
+                appState.openSettingsWindow()
+            } else {
+                self.openPermissionsWindow(for: appState)
+            }
         }
+    }
+
+    private func hasRequiredPermissions(in appState: AppState) -> Bool {
+        appState.permissionsManager.requiredPermissions.allSatisfy(\.hasPermission)
+    }
+
+    private func openPermissionsWindow(for appState: AppState) {
+        appState.activate(withPolicy: .regular)
+        appState.dismissSettingsWindow()
+        appState.openPermissionsWindow()
     }
 }
 

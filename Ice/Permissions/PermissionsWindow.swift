@@ -16,10 +16,16 @@ struct PermissionsWindow: Scene {
                         return
                     }
                     appState.assignPermissionsWindow(window)
+                    window.styleMask.insert(.fullSizeContentView)
+                    window.titleVisibility = .hidden
+                    window.titlebarAppearsTransparent = true
+                    window.toolbarStyle = .unifiedCompact
+                    window.isMovableByWindowBackground = true
                 }
         }
         .windowResizability(.contentSize)
         .windowStyle(.hiddenTitleBar)
+        .windowToolbarStyle(.unifiedCompact)
         .environmentObject(appState.permissionsManager)
     }
 }

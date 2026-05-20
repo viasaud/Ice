@@ -27,7 +27,6 @@ final class EventManager {
         switch event.type {
         case .leftMouseDown:
             handleShowOnClick()
-            handleSmartRehide(with: event)
         case .rightMouseDown:
             handleShowRightClickMenu()
         default:
@@ -153,86 +152,15 @@ extension EventManager {
                 handleShowRightClickMenu()
             } else if
                 NSEvent.modifierFlags == .option,
-                appState.settingsManager.advancedSettingsManager.canToggleAlwaysHiddenSection
+                canRevealAlwaysHiddenSection
             {
                 if let alwaysHiddenSection = appState.menuBarManager.section(withName: .alwaysHidden) {
-                    alwaysHiddenSection.toggle()
+                    alwaysHiddenSection.toggle(rehideAfter: appState.settingsManager.advancedSettingsManager.tempShowInterval)
                 }
             } else {
                 if let hiddenSection = appState.menuBarManager.section(withName: .hidden) {
-                    hiddenSection.toggle()
+                    hiddenSection.toggle(rehideAfter: appState.settingsManager.advancedSettingsManager.tempShowInterval)
                 }
-            }
-        }
-    }
-
-    // MARK: Handle Smart Rehide
-
-    private func handleSmartRehide(with event: NSEvent) {
-        guard
-            let appState,
-            appState.settingsManager.generalSettingsManager.autoRehide,
-            case .smart = appState.settingsManager.generalSettingsManager.rehideStrategy
-        else {
-            return
-        }
-
-        if let visibleSection = appState.menuBarManager.section(withName: .visible) {
-            guard event.window !== visibleSection.controlItem.window else {
-                return
-            }
-        }
-
-        // Only continue if a section is currently visible.
-        guard appState.menuBarManager.sections.contains(where: { !$0.isHidden }) else {
-            return
-        }
-
-        // Make sure the mouse is not in the menu bar.
-        guard !isMouseInsideMenuBar else {
-            return
-        }
-
-        Task {
-            let initialSpaceID = Bridging.activeSpaceID
-
-            // Sleep for a bit to give the window under the mouse a chance to focus.
-            try? await Task.sleep(for: .seconds(0.25))
-
-            // If clicking caused a space change, don't bother with the window check.
-            if Bridging.activeSpaceID != initialSpaceID {
-                for section in appState.menuBarManager.sections {
-                    section.hide()
-                }
-                return
-            }
-
-            // Get the window that the user has clicked into.
-            guard
-                let mouseLocation = MouseCursor.locationCoreGraphics,
-                let windowUnderMouse = WindowInfo.getOnScreenWindows(excludeDesktopWindows: false)
-                    .filter({ $0.layer < CGWindowLevelForKey(.cursorWindow) })
-                    .first(where: { $0.frame.contains(mouseLocation) && $0.title?.isEmpty == false }),
-                let owningApplication = windowUnderMouse.owningApplication
-            else {
-                return
-            }
-
-            // The dock is an exception to the following check.
-            if owningApplication.bundleIdentifier != "com.apple.dock" {
-                // Only continue if the user has clicked into an active window with
-                // a regular activation policy.
-                guard
-                    owningApplication.isActive,
-                    owningApplication.activationPolicy == .regular
-                else {
-                    return
-                }
-            }
-
-            // If all the above checks have passed, hide all sections.
-            for section in appState.menuBarManager.sections {
-                section.hide()
             }
         }
     }
@@ -303,13 +231,12 @@ extension EventManager {
             return
         }
 
-        // Don't continue if the setting to show the sections is disabled.
-        guard appState.settingsManager.advancedSettingsManager.showAllSectionsOnUserDrag else {
-            return
-        }
-
-        // Show all items, including section dividers.
+        // Show revealable items, including section dividers.
         for section in appState.menuBarManager.sections {
+            guard section.name != .alwaysHidden || canRevealAlwaysHiddenSection else {
+                section.hide()
+                continue
+            }
             section.controlItem.state = .showItems
             guard
                 section.controlItem.isSectionDivider,
@@ -345,14 +272,11 @@ extension EventManager {
             return
         }
 
-        let delay = appState.settingsManager.advancedSettingsManager.showOnHoverDelay
-
         Task {
             if hiddenSection.isHidden {
                 guard self.isMouseInsideHoverActivationRegion else {
                     return
                 }
-                try? await Task.sleep(for: .seconds(delay))
                 // Make sure the mouse is still inside.
                 guard self.isMouseInsideHoverActivationRegion else {
                     return
@@ -362,7 +286,6 @@ extension EventManager {
                 guard !self.isMouseInsideMenuBar else {
                     return
                 }
-                try? await Task.sleep(for: .seconds(delay))
                 // Make sure the mouse is still outside.
                 guard !self.isMouseInsideMenuBar else {
                     return
@@ -468,9 +391,7 @@ extension EventManager {
     /// A Boolean value that indicates whether the mouse pointer is in a region
     /// that should activate the "Show on hover" behavior.
     var isMouseInsideHoverActivationRegion: Bool {
-        isMouseInsideMenuBar &&
-        !isMouseInsideApplicationMenu &&
-        !isMouseInsideNotch
+        isMouseInsideIceIcon
     }
 
     /// A Boolean value that indicates whether the mouse pointer is within
@@ -485,6 +406,21 @@ extension EventManager {
             return false
         }
         return iceIconFrame.contains(mouseLocation)
+    }
+
+    /// A Boolean value that indicates whether the always-hidden section can be
+    /// revealed by a user action.
+    var canRevealAlwaysHiddenSection: Bool {
+        guard
+            let appState,
+            let alwaysHiddenSection = appState.menuBarManager.section(withName: .alwaysHidden),
+            alwaysHiddenSection.isEnabled
+        else {
+            return false
+        }
+
+        let advancedManager = appState.settingsManager.advancedSettingsManager
+        return advancedManager.enableAlwaysHiddenSection && advancedManager.canToggleAlwaysHiddenSection
     }
 }
 

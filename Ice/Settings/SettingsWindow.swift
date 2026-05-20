@@ -16,12 +16,18 @@ struct SettingsWindow: Scene {
                         return
                     }
                     appState.assignSettingsWindow(window)
+                    window.styleMask.insert(.fullSizeContentView)
+                    window.titleVisibility = .hidden
+                    window.titlebarAppearsTransparent = true
+                    window.toolbarStyle = .unifiedCompact
+                    window.isMovableByWindowBackground = true
                 }
-                .frame(minWidth: 825, minHeight: 500)
+                .frame(width: 700)
         }
         .commandsRemoved()
+        .windowStyle(.hiddenTitleBar)
+        .windowToolbarStyle(.unifiedCompact)
         .windowResizability(.contentSize)
-        .defaultSize(width: 900, height: 625)
         .environmentObject(appState)
         .environmentObject(appState.navigationState)
     }

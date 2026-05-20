@@ -89,7 +89,7 @@ final class MenuBarSection {
     }
 
     /// Shows the section.
-    func show() {
+    func show(rehideAfter delay: TimeInterval? = nil) {
         guard
             let appState,
             isHidden
@@ -125,7 +125,7 @@ final class MenuBarSection {
             hiddenSection.controlItem.state = .showItems
             visibleSection.controlItem.state = .showItems
         }
-        startRehideChecks()
+        startRehideTimer(after: delay)
     }
 
     /// Hides the section.
@@ -165,65 +165,31 @@ final class MenuBarSection {
     }
 
     /// Toggles the visibility of the section.
-    func toggle() {
+    func toggle(rehideAfter delay: TimeInterval? = nil) {
         if isHidden {
-            show()
+            show(rehideAfter: delay)
         } else {
             hide()
         }
     }
 
-    /// Starts running checks to determine when to rehide the section.
-    private func startRehideChecks() {
+    /// Starts a timer to rehide the section.
+    private func startRehideTimer(after delay: TimeInterval?) {
         rehideTimer?.invalidate()
         rehideMonitor?.stop()
 
-        guard
-            let appState,
-            appState.settingsManager.generalSettingsManager.autoRehide,
-            case .timed = appState.settingsManager.generalSettingsManager.rehideStrategy
-        else {
+        guard let delay else {
             return
         }
 
-        rehideMonitor = UniversalEventMonitor(mask: .mouseMoved) { [weak self] event in
-            guard
-                let self,
-                let screen = NSScreen.main
-            else {
-                return event
+        rehideTimer = .scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
+            guard let self else {
+                return
             }
-            if NSEvent.mouseLocation.y < screen.visibleFrame.maxY {
-                if rehideTimer == nil {
-                    rehideTimer = .scheduledTimer(
-                        withTimeInterval: appState.settingsManager.generalSettingsManager.rehideInterval,
-                        repeats: false
-                    ) { [weak self] _ in
-                        guard
-                            let self,
-                            let screen = NSScreen.main
-                        else {
-                            return
-                        }
-                        if NSEvent.mouseLocation.y < screen.visibleFrame.maxY {
-                            Task {
-                                await self.hide()
-                            }
-                        } else {
-                            Task {
-                                await self.startRehideChecks()
-                            }
-                        }
-                    }
-                }
-            } else {
-                rehideTimer?.invalidate()
-                rehideTimer = nil
+            Task {
+                await self.hide()
             }
-            return event
         }
-
-        rehideMonitor?.start()
     }
 
     /// Stops running checks to determine when to rehide the section.

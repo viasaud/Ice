@@ -24,7 +24,6 @@ The project uses local ad hoc signing for personal builds. If Xcode prompts for 
 
 - AXSwift
 - CompactSlider
-- Ifrit
 - LaunchAtLogin
 
 Sparkle and the old update feed are no longer included.

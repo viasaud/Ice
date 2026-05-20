@@ -187,29 +187,50 @@ private struct SectionedListItemView<ItemID: Hashable>: View {
     let item: SectionedListItem<ItemID>
 
     var body: some View {
-        ZStack {
-            if item.isSelectable {
-                if selection == item.id {
-                    itemBackground.opacity(0.5)
-                } else if isHovering {
-                    itemBackground.opacity(0.25)
-                }
-            }
-            item.content
+        if item.isSelectable {
+            selectableContent
+        } else {
+            rowContent
+                .accessibilityAddTraits(.isHeader)
         }
-        .frame(minWidth: 22, minHeight: 22)
-        .contentShape(Rectangle())
+    }
+
+    private var isSelected: Bool {
+        selection == item.id
+    }
+
+    @ViewBuilder
+    private var selectableContent: some View {
+        Button {
+            selection = item.id
+        } label: {
+            rowContent
+        }
+        .buttonStyle(.plain)
         .onHover { hovering in
             isHovering = hovering
-        }
-        .onTapGesture {
-            selection = item.id
         }
         .simultaneousGesture(
             TapGesture(count: 2).onEnded {
                 item.action?()
             }
         )
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+
+    @ViewBuilder
+    private var rowContent: some View {
+        ZStack {
+            if isSelected {
+                itemBackground.opacity(0.52)
+            } else if item.isSelectable && isHovering {
+                itemBackground.opacity(0.28)
+            }
+
+            item.content
+        }
+        .frame(minWidth: 22, minHeight: 22)
+        .contentShape(Rectangle())
         .onFrameChange(in: .global) { frame in
             itemFrames[item.id] = frame
         }
@@ -217,7 +238,11 @@ private struct SectionedListItemView<ItemID: Hashable>: View {
 
     @ViewBuilder
     private var itemBackground: some View {
-        VisualEffectView(material: .selection, blendingMode: .withinWindow)
-            .clipShape(RoundedRectangle(cornerRadius: 5, style: .circular))
+        RoundedRectangle(cornerRadius: 5, style: .circular)
+            .fill(.regularMaterial)
+            .overlay {
+                RoundedRectangle(cornerRadius: 5, style: .circular)
+                    .strokeBorder(.white.opacity(0.12))
+            }
     }
 }
