@@ -30,9 +30,6 @@ final class AppState: ObservableObject {
     /// Global cache for menu bar item images.
     private(set) lazy var imageCache = MenuBarItemImageCache(appState: self)
 
-    /// Model for app-wide navigation.
-    let navigationState = AppNavigationState()
-
     /// Coordinates startup and permission-gated app setup.
     private(set) lazy var lifecycleCoordinator = AppLifecycleCoordinator(appState: self)
 
@@ -50,6 +47,10 @@ final class AppState: ObservableObject {
 
     /// A Boolean value that indicates whether the app has activated before.
     private var hasActivated = false
+
+    @Published private var isAppFrontmost = false
+
+    @Published private var isSettingsPresented = false
 
     /// Storage for internal observers.
     private var cancellables = Set<AnyCancellable>()
@@ -112,7 +113,7 @@ final class AppState: ObservableObject {
                 guard let self else {
                     return
                 }
-                navigationState.isAppFrontmost = frontmostApplication == .current
+                isAppFrontmost = frontmostApplication == .current
             }
             .store(in: &c)
 
@@ -123,7 +124,7 @@ final class AppState: ObservableObject {
                     guard let self else {
                         return
                     }
-                    navigationState.isSettingsPresented = isVisible
+                    isSettingsPresented = isVisible
                 }
                 .store(in: &c)
         } else {
@@ -131,8 +132,8 @@ final class AppState: ObservableObject {
         }
 
         Publishers.Merge(
-            navigationState.$isAppFrontmost,
-            navigationState.$isSettingsPresented
+            $isAppFrontmost,
+            $isSettingsPresented
         )
         .debounce(for: 0.1, scheduler: DispatchQueue.main)
         .sink { [weak self] shouldUpdate in
@@ -208,30 +209,22 @@ final class AppState: ObservableObject {
 
     /// Opens the settings window.
     func openSettingsWindow() {
-        with(EnvironmentValues()) { environment in
-            environment.openWindow(id: Constants.settingsWindowID)
-        }
+        EnvironmentValues().openWindow(id: Constants.settingsWindowID)
     }
 
     /// Dismisses the settings window.
     func dismissSettingsWindow() {
-        with(EnvironmentValues()) { environment in
-            environment.dismissWindow(id: Constants.settingsWindowID)
-        }
+        EnvironmentValues().dismissWindow(id: Constants.settingsWindowID)
     }
 
     /// Opens the permissions window.
     func openPermissionsWindow() {
-        with(EnvironmentValues()) { environment in
-            environment.openWindow(id: Constants.permissionsWindowID)
-        }
+        EnvironmentValues().openWindow(id: Constants.permissionsWindowID)
     }
 
     /// Dismisses the permissions window.
     func dismissPermissionsWindow() {
-        with(EnvironmentValues()) { environment in
-            environment.dismissWindow(id: Constants.permissionsWindowID)
-        }
+        EnvironmentValues().dismissWindow(id: Constants.permissionsWindowID)
     }
 
     /// Toggles the appropriate menu bar section for the current modifier flags.

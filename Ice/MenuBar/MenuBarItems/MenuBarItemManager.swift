@@ -1484,17 +1484,12 @@ extension MenuBarItemManager {
             return
         }
 
-        let lifecycle = TemporaryRevealLifecycle(
-            isMouseButtonDown: isMouseButtonDown,
-            isShowingItemInterface: tempShownItemContexts.contains(where: { $0.isShowingInterface })
-        )
-
-        guard !lifecycle.isMouseButtonDown else {
+        guard !isMouseButtonDown else {
             Logger.itemManager.debug("Mouse button is down, so waiting to rehide")
             runTempShownItemTimer(for: Timing.rehideRetryInterval)
             return
         }
-        guard !lifecycle.isShowingItemInterface else {
+        guard !tempShownItemContexts.contains(where: { $0.isShowingInterface }) else {
             Logger.itemManager.debug("Menu bar item interface is shown, so waiting to rehide")
             runTempShownItemTimer(for: Timing.rehideRetryInterval)
             return

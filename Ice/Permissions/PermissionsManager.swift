@@ -32,10 +32,7 @@ final class PermissionsManager: ObservableObject {
     }
 
     var canRunApp: Bool {
-        PermissionGate(
-            hasRequiredPermissions: requiredPermissions.allSatisfy(\.hasPermission)
-        )
-        .canRunApp
+        requiredPermissions.allSatisfy(\.hasPermission)
     }
 
     init(appState: AppState) {

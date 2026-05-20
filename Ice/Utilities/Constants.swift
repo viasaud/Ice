@@ -9,12 +9,6 @@ enum Constants {
     /// The version string in the app's bundle.
     static let versionString = Bundle.main.requiredVersionString
 
-    /// The build string in the app's bundle.
-    static let buildString = Bundle.main.requiredBuildString
-
-    /// The user-readable copyright string in the app's bundle.
-    static let copyrightString = Bundle.main.requiredCopyrightString
-
     /// The bundle identifier of the app.
     static let bundleIdentifier = Bundle.main.requiredBundleIdentifier
 
@@ -34,14 +28,6 @@ enum Constants {
 private extension Bundle {
     var requiredVersionString: String {
         requiredString(forInfoDictionaryKey: "CFBundleShortVersionString")
-    }
-
-    var requiredBuildString: String {
-        requiredString(forInfoDictionaryKey: "CFBundleVersion")
-    }
-
-    var requiredCopyrightString: String {
-        requiredString(forInfoDictionaryKey: "NSHumanReadableCopyright")
     }
 
     var requiredBundleIdentifier: String {
