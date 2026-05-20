@@ -138,7 +138,7 @@ extension EventManager {
     private func handleShowOnClick() {
         guard
             let appState,
-            appState.settingsManager.generalSettingsManager.showOnClick,
+            appState.settingsManager.behavior.revealsHiddenItemsOnClick,
             isMouseInsideEmptyMenuBarSpace
         else {
             return
@@ -152,17 +152,8 @@ extension EventManager {
 
             if modifierFlags.contains(.control) {
                 handleShowRightClickMenu()
-            } else if
-                modifierFlags.contains(.option),
-                canRevealAlwaysHiddenSection
-            {
-                if let alwaysHiddenSection = appState.menuBarManager.section(withName: .alwaysHidden) {
-                    alwaysHiddenSection.toggle(rehideAfter: appState.settingsManager.advancedSettingsManager.tempShowInterval)
-                }
             } else {
-                if let hiddenSection = appState.menuBarManager.section(withName: .hidden) {
-                    hiddenSection.toggle(rehideAfter: appState.settingsManager.advancedSettingsManager.tempShowInterval)
-                }
+                appState.toggleMenuBarSection(using: modifierFlags)
             }
         }
     }
@@ -185,7 +176,7 @@ extension EventManager {
     private func handlePreventShowOnHover(with event: NSEvent) {
         guard
             let appState,
-            appState.settingsManager.generalSettingsManager.showOnHover,
+            appState.settingsManager.behavior.revealsHiddenItemsOnHover,
             isMouseInsideMenuBar
         else {
             return
@@ -234,7 +225,7 @@ extension EventManager {
 
         // Show revealable items, including section dividers.
         for section in appState.menuBarManager.sections {
-            guard section.name != .alwaysHidden || canRevealAlwaysHiddenSection else {
+            guard appState.canShowSectionDuringCommandDrag(section) else {
                 section.hide()
                 continue
             }
@@ -262,7 +253,7 @@ extension EventManager {
 
         // Make sure the "ShowOnHover" feature is enabled and not prevented.
         guard
-            appState.settingsManager.generalSettingsManager.showOnHover,
+            appState.settingsManager.behavior.revealsHiddenItemsOnHover,
             !appState.isShowOnHoverPrevented
         else {
             return
@@ -383,16 +374,13 @@ extension EventManager {
     /// A Boolean value that indicates whether the mouse pointer is within
     /// the bounds of an empty space in the menu bar.
     var isMouseInsideEmptyMenuBarSpace: Bool {
-        isMouseInsideMenuBar &&
-        !isMouseInsideApplicationMenu &&
-        !isMouseInsideMenuBarItem &&
-        !isMouseInsideNotch
+        hitTest.isInsideEmptyMenuBarSpace
     }
 
     /// A Boolean value that indicates whether the mouse pointer is in a region
     /// that should activate the "Show on hover" behavior.
     var isMouseInsideHoverActivationRegion: Bool {
-        isMouseInsideIceIcon
+        hitTest.isInsideHoverActivationRegion
     }
 
     /// A Boolean value that indicates whether the mouse pointer is within
@@ -409,15 +397,14 @@ extension EventManager {
         return iceIconFrame.contains(mouseLocation)
     }
 
-    /// A Boolean value that indicates whether the always-hidden section can be
-    /// revealed by a user action.
-    var canRevealAlwaysHiddenSection: Bool {
-        guard let appState else {
-            return false
-        }
-
-        let advancedManager = appState.settingsManager.advancedSettingsManager
-        return advancedManager.enableAlwaysHiddenSection
+    private var hitTest: MenuBarHitTest {
+        MenuBarHitTest(
+            isInsideMenuBar: isMouseInsideMenuBar,
+            isInsideApplicationMenu: isMouseInsideApplicationMenu,
+            isInsideMenuBarItem: isMouseInsideMenuBarItem,
+            isInsideNotch: isMouseInsideNotch,
+            isInsideIceIcon: isMouseInsideIceIcon
+        )
     }
 }
 

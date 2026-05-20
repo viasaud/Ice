@@ -10,7 +10,7 @@ import SwiftUI
 @MainActor
 final class AppState: ObservableObject {
     /// A Boolean value that indicates whether the active space is fullscreen.
-    @Published private(set) var isActiveSpaceFullscreen = Bridging.isSpaceFullscreen(Bridging.activeSpaceID)
+    @Published private(set) var isActiveSpaceFullscreen = WindowServerAdapter.isSpaceFullscreen(WindowServerAdapter.activeSpaceID)
 
     /// Manager for events received by the app.
     private(set) lazy var eventManager = EventManager(appState: self)
@@ -32,6 +32,9 @@ final class AppState: ObservableObject {
 
     /// Model for app-wide navigation.
     let navigationState = AppNavigationState()
+
+    /// Coordinates startup and permission-gated app setup.
+    private(set) lazy var lifecycleCoordinator = AppLifecycleCoordinator(appState: self)
 
     /// The app's delegate.
     private(set) weak var appDelegate: AppDelegate?
@@ -65,8 +68,14 @@ final class AppState: ObservableObject {
     /// A Boolean value that indicates whether the application can set the cursor
     /// in the background.
     var setsCursorInBackground: Bool {
-        get { Bridging.getConnectionProperty(forKey: "SetsCursorInBackground") as? Bool ?? false }
-        set { Bridging.setConnectionProperty(newValue, forKey: "SetsCursorInBackground") }
+        get { WindowServerAdapter.connectionProperty(forKey: "SetsCursorInBackground") as? Bool ?? false }
+        set { WindowServerAdapter.setConnectionProperty(newValue, forKey: "SetsCursorInBackground") }
+    }
+
+    /// A Boolean value that indicates whether the always-hidden section can be
+    /// revealed by a user action.
+    var canRevealAlwaysHiddenSection: Bool {
+        settingsManager.revealPolicy.canRevealAlwaysHiddenSection
     }
 
     /// Configures the internal observers for the app state.
@@ -93,7 +102,7 @@ final class AppState: ObservableObject {
             guard let self else {
                 return
             }
-            isActiveSpaceFullscreen = Bridging.isSpaceFullscreen(Bridging.activeSpaceID)
+            isActiveSpaceFullscreen = WindowServerAdapter.isSpaceFullscreen(WindowServerAdapter.activeSpaceID)
         }
         .store(in: &c)
 
@@ -223,6 +232,29 @@ final class AppState: ObservableObject {
         with(EnvironmentValues()) { environment in
             environment.dismissWindow(id: Constants.permissionsWindowID)
         }
+    }
+
+    /// Toggles the appropriate menu bar section for the current modifier flags.
+    func toggleMenuBarSection(using modifierFlags: NSEvent.ModifierFlags, preferredSection: MenuBarSection? = nil) {
+        switch settingsManager.revealPolicy.toggleDecision(
+            modifierFlags: modifierFlags,
+            preferredSectionName: preferredSection?.name
+        ) {
+        case .toggle(let sectionName, let delay):
+            menuBarManager.section(withName: sectionName)?.toggle(rehideAfter: delay)
+        case .none:
+            return
+        }
+    }
+
+    /// Returns whether a section may be shown during command-drag rearrangement.
+    func canShowSectionDuringCommandDrag(_ section: MenuBarSection) -> Bool {
+        settingsManager.revealPolicy.canShowDuringCommandDrag(section.name)
+    }
+
+    /// Returns the sections that may appear in a control item's menu.
+    func revealableSectionNamesForControlMenu() -> [MenuBarSection.Name] {
+        settingsManager.revealPolicy.contextMenuSectionNames()
     }
 
     /// Activates the app and sets its activation policy to the given value.

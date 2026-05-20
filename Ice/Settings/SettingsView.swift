@@ -29,20 +29,9 @@ struct SettingsView: View {
 
     private var hiddenItemsActivationMode: Binding<HiddenItemsActivationMode> {
         Binding {
-            if generalManager.showOnHover && !generalManager.showOnClick {
-                .hover
-            } else {
-                .click
-            }
+            appState.settingsManager.hiddenItemsActivationMode
         } set: { mode in
-            switch mode {
-            case .click:
-                generalManager.showOnClick = true
-                generalManager.showOnHover = false
-            case .hover:
-                generalManager.showOnClick = false
-                generalManager.showOnHover = true
-            }
+            appState.settingsManager.hiddenItemsActivationMode = mode
         }
     }
 
@@ -90,7 +79,7 @@ struct SettingsView: View {
                 SettingsRowWithNote("Reveal hidden menu bar items by", note: alwaysHiddenSectionDescription) {
                     Picker("Reveal hidden menu bar items by", selection: hiddenItemsActivationMode) {
                         ForEach(HiddenItemsActivationMode.allCases) { mode in
-                            Text(mode.localized).tag(mode)
+                            Text(mode.displayTitle).tag(mode)
                         }
                     }
                     .labelsHidden()
@@ -102,7 +91,7 @@ struct SettingsView: View {
                 SettingsRow("Reveal hidden menu bar items by") {
                     Picker("Reveal hidden menu bar items by", selection: hiddenItemsActivationMode) {
                         ForEach(HiddenItemsActivationMode.allCases) { mode in
-                            Text(mode.localized).tag(mode)
+                            Text(mode.displayTitle).tag(mode)
                         }
                     }
                     .labelsHidden()
@@ -133,7 +122,7 @@ struct SettingsView: View {
 
             SettingsRow("Hide click-revealed items after") {
                 IceSlider(
-                    formattedToSeconds(advancedManager.tempShowInterval),
+                    advancedManager.tempShowInterval.formattedSecondsLabel,
                     value: advancedManager.bindings.tempShowInterval,
                     in: 0...30,
                     step: 1
@@ -175,31 +164,6 @@ struct SettingsView: View {
         "To reveal the always-hidden section, Option-click the chevron."
     }
 
-    private func formattedToSeconds(_ interval: TimeInterval) -> LocalizedStringKey {
-        let formatted = interval.formatted()
-        return if interval == 1 {
-            LocalizedStringKey(formatted + " second")
-        } else {
-            LocalizedStringKey(formatted + " seconds")
-        }
-    }
-
-}
-
-private enum HiddenItemsActivationMode: String, CaseIterable, Identifiable {
-    case click
-    case hover
-
-    var id: Self { self }
-
-    var localized: LocalizedStringKey {
-        switch self {
-        case .click:
-            "Click"
-        case .hover:
-            "Hover"
-        }
-    }
 }
 
 private struct MinimalSettingsTitle: View {

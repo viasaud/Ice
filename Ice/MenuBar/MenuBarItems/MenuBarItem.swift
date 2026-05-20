@@ -111,7 +111,7 @@ struct MenuBarItem {
     /// A Boolean value that indicates whether the item is currently
     /// in the menu bar.
     var isCurrentlyInMenuBar: Bool {
-        let list = Set(Bridging.getWindowList(option: .menuBarItems))
+        let list = Set(WindowServerAdapter.windowList(option: .menuBarItems))
         return list.contains(windowID)
     }
 
@@ -187,14 +187,14 @@ extension MenuBarItem {
         if let display {
             let displayBounds = CGDisplayBounds(display)
             boundsPredicate = { windowID in
-                guard let windowFrame = Bridging.getWindowFrame(for: windowID) else {
+                guard let windowFrame = WindowServerAdapter.windowFrame(for: windowID) else {
                     return false
                 }
                 return displayBounds.intersects(windowFrame)
             }
         }
 
-        return Bridging.getWindowList(option: option).lazy
+        return WindowServerAdapter.windowList(option: option).lazy
             .filter(boundsPredicate)
             .compactMap { windowID in
                 MenuBarItem(windowID: windowID)

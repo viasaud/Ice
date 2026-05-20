@@ -111,27 +111,27 @@ extension CGImage {
         }
 
         // Resize the image for better performance.
-        let width = min(width, 10)
-        let height = min(height, 10)
+        let sampleWidth = min(width, 10)
+        let sampleHeight = min(height, 10)
 
-        guard let pixelData = createPixelData(width: width, height: height) else {
+        guard let pixelData = createPixelData(width: sampleWidth, height: sampleHeight) else {
             return nil
         }
 
         // Convert the alpha threshold to a valid component for comparison.
-        let alphaThreshold = Int((alphaThreshold.clamped(to: 0...1) * 255).rounded(.toNearestOrAwayFromZero))
+        let minimumAlpha = Int((alphaThreshold.clamped(to: 0...1) * 255).rounded(.toNearestOrAwayFromZero))
 
-        var includedPixelCount = width * height
+        var includedPixelCount = sampleWidth * sampleHeight
         var totals = (red: 0, green: 0, blue: 0, alpha: 0)
 
-        for column in 0..<width {
-            for row in 0..<height {
-                let pixel = pixelData[(row * width) + column]
+        for column in 0..<sampleWidth {
+            for row in 0..<sampleHeight {
+                let pixel = pixelData[(row * sampleWidth) + column]
 
                 // Check alpha before computing other components.
                 let alphaComponent = computeComponent(shift: 24, pixel: pixel)
 
-                guard alphaComponent >= alphaThreshold else {
+                guard alphaComponent >= minimumAlpha else {
                     includedPixelCount -= 1 // Don't include this pixel.
                     continue
                 }
@@ -142,6 +142,10 @@ extension CGImage {
                 totals.blue += computeComponent(shift: 0, pixel: pixel)
                 totals.alpha += alphaComponent
             }
+        }
+
+        guard includedPixelCount > 0 else {
+            return nil
         }
 
         // Multiply the included pixel count by 255 to convert the components
@@ -235,6 +239,14 @@ extension CGImage {
             return image.cropping(to: insetRect)
         }
 
+        func isTransparent() -> Bool {
+            !rowRange.contains { row in
+                columnRange.contains { column in
+                    isPixelOpaque(row: row, column: column)
+                }
+            }
+        }
+
         private func inset(for edge: CGRectEdge, in edges: Set<CGRectEdge>) -> Int? {
             guard edges.contains(edge) else {
                 return 0
@@ -267,7 +279,7 @@ extension CGImage {
                 // Use memcmp to efficiently check the entire row for zeroed out alpha.
                 let rowByteBlock = bitmapData + (row * cgContext.bytesPerRow)
                 if memcmp(rowByteBlock, zeroByteBlock, image.width) == 0 {
-                    return true
+                    return false
                 }
                 // We found a non-zero row. Check each pixel until we find one that is opaque.
                 return columnRange.contains { column in
@@ -306,8 +318,9 @@ extension CGImage {
     /// - Parameter maxAlpha: The maximum alpha value to consider transparent.
     ///   Pixels with alpha values above this value will be considered opaque.
     func isTransparent(maxAlpha: CGFloat = 0) -> Bool {
-        // FIXME: This needs a dedicated implementation instead of relying on `trimmingTransparentPixels`
-        trimmingTransparentPixels(maxAlpha: maxAlpha) == nil
+        let maxAlpha = UInt8(maxAlpha.clamped(to: 0...1) * 255)
+        let context = TransparencyContext(image: self, maxAlpha: maxAlpha)
+        return context?.isTransparent() ?? false
     }
 }
 
@@ -394,7 +407,7 @@ extension NSBezierPath {
         let fillRule: CGPathFillRule = switch windingRule {
         case .nonZero: .winding
         case .evenOdd: .evenOdd
-        @unknown default: fatalError("Unknown winding rule \(windingRule)")
+        @unknown default: .evenOdd
         }
         return NSBezierPath(cgPath: cgPath.union(other.cgPath, using: fillRule))
     }
@@ -500,6 +513,20 @@ extension Sequence where Element == MenuBarItem {
     func sortedByOrderInMenuBar() -> [MenuBarItem] {
         sorted { lhs, rhs in
             lhs.frame.maxX < rhs.frame.maxX
+        }
+    }
+}
+
+// MARK: - TimeInterval
+
+extension TimeInterval {
+    /// A localized label for a duration expressed in seconds.
+    var formattedSecondsLabel: LocalizedStringKey {
+        let formattedValue = formatted()
+        return if self == 1 {
+            LocalizedStringKey(formattedValue + " second")
+        } else {
+            LocalizedStringKey(formattedValue + " seconds")
         }
     }
 }

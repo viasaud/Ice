@@ -111,11 +111,6 @@ final class MenuBarItemImageCache: ObservableObject {
             return
         }
 
-        guard appState.navigationState.isSearchPresented else {
-            logSkippingCache(reason: "search not visible")
-            return
-        }
-
         guard !appState.itemManager.isMovingItem else {
             logSkippingCache(reason: "an item is currently being moved")
             return
@@ -131,16 +126,11 @@ final class MenuBarItemImageCache: ObservableObject {
 
     /// Updates the cache for all sections, if necessary.
     func updateCache() async {
-        guard let appState else {
+        guard appState != nil else {
             return
         }
 
-        var sectionsNeedingDisplay = [MenuBarSection.Name]()
-        if appState.navigationState.isSearchPresented {
-            sectionsNeedingDisplay = MenuBarSection.Name.allCases
-        }
-
-        await updateCache(sections: sectionsNeedingDisplay)
+        await updateCache(sections: MenuBarSection.Name.allCases)
     }
 }
 

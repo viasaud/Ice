@@ -31,6 +31,13 @@ final class PermissionsManager: ObservableObject {
         allPermissions.filter { $0.isRequired }
     }
 
+    var canRunApp: Bool {
+        PermissionGate(
+            hasRequiredPermissions: requiredPermissions.allSatisfy(\.hasPermission)
+        )
+        .canRunApp
+    }
+
     init(appState: AppState) {
         self.appState = appState
         self.accessibilityPermission = AccessibilityPermission()
@@ -75,5 +82,11 @@ final class PermissionsManager: ObservableObject {
         for permission in allPermissions {
             permission.stopCheck()
         }
+    }
+
+    func requestAccessibilityPermissionAndWait() async {
+        accessibilityPermission.performRequest()
+        await accessibilityPermission.waitForPermission()
+        refreshAllPermissions()
     }
 }

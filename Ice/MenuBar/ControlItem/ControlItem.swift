@@ -330,20 +330,8 @@ final class ControlItem {
 
             if modifierFlags.contains(.control) {
                 statusItem.showMenu(createMenu(with: appState))
-            } else if
-                modifierFlags.contains(.option),
-                canRevealAlwaysHiddenSection(with: appState)
-            {
-                if let alwaysHiddenSection = appState.menuBarManager.section(withName: .alwaysHidden) {
-                    alwaysHiddenSection.toggle(rehideAfter: appState.settingsManager.advancedSettingsManager.tempShowInterval)
-                }
-            } else if
-                section?.name == .alwaysHidden,
-                !canRevealAlwaysHiddenSection(with: appState)
-            {
-                return
             } else {
-                section?.toggle(rehideAfter: appState.settingsManager.advancedSettingsManager.tempShowInterval)
+                appState.toggleMenuBarSection(using: modifierFlags, preferredSection: section)
             }
         case .rightMouseUp:
             statusItem.showMenu(createMenu(with: appState))
@@ -367,12 +355,7 @@ final class ControlItem {
         menu.addItem(.separator())
 
         // Add menu items to toggle the hidden and always-hidden sections.
-        let sectionNames: [MenuBarSection.Name] = if canRevealAlwaysHiddenSection(with: appState) {
-            [.hidden, .alwaysHidden]
-        } else {
-            [.hidden]
-        }
-        for name in sectionNames {
+        for name in appState.revealableSectionNamesForControlMenu() {
             guard
                 let section = appState.menuBarManager.section(withName: name),
                 section.controlItem.isAddedToMenuBar
@@ -408,7 +391,7 @@ final class ControlItem {
         guard let appState else {
             return
         }
-        Self.sectionStorage.value(for: menuItem)?.toggle(rehideAfter: appState.settingsManager.advancedSettingsManager.tempShowInterval)
+        appState.toggleMenuBarSection(using: [], preferredSection: Self.sectionStorage.value(for: menuItem))
     }
 
     /// Adds the control item to the menu bar.
@@ -432,12 +415,6 @@ final class ControlItem {
         StatusItemDefaults[.preferredPosition, autosaveName] = cached
     }
 
-    /// A Boolean value that indicates whether the always-hidden section can be
-    /// revealed by a user action.
-    private func canRevealAlwaysHiddenSection(with appState: AppState) -> Bool {
-        let advancedManager = appState.settingsManager.advancedSettingsManager
-        return advancedManager.enableAlwaysHiddenSection
-    }
 }
 
 private extension ControlItem {

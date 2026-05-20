@@ -41,18 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        // Perform setup after a small delay to ensure that the settings window
-        // has been assigned.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            guard !appState.isPreview else {
-                return
-            }
-            if self.hasRequiredPermissions(in: appState) {
-                appState.performSetup()
-            } else {
-                self.openPermissionsWindow(for: appState)
-            }
-        }
+        appState.lifecycleCoordinator.finishLaunchingAfterWindowsAreReady()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -69,8 +58,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         appState.permissionsManager.refreshAllPermissions()
-        if !hasRequiredPermissions(in: appState) {
-            openPermissionsWindow(for: appState)
+        if !appState.permissionsManager.canRunApp {
+            appState.lifecycleCoordinator.startOrShowPermissions()
         }
     }
 
@@ -95,26 +84,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Logger.appDelegate.error("Failed to open settings window")
             return
         }
-        // Small delay makes this more reliable.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            appState.permissionsManager.refreshAllPermissions()
-            if self.hasRequiredPermissions(in: appState) {
-                appState.activate(withPolicy: .regular)
-                appState.openSettingsWindow()
-            } else {
-                self.openPermissionsWindow(for: appState)
-            }
-        }
-    }
-
-    private func hasRequiredPermissions(in appState: AppState) -> Bool {
-        appState.permissionsManager.requiredPermissions.allSatisfy(\.hasPermission)
-    }
-
-    private func openPermissionsWindow(for appState: AppState) {
-        appState.activate(withPolicy: .regular)
-        appState.dismissSettingsWindow()
-        appState.openPermissionsWindow()
+        appState.lifecycleCoordinator.openSettingsOrPermissions()
     }
 }
 

@@ -29,6 +29,5 @@ struct SettingsWindow: Scene {
         .windowToolbarStyle(.unifiedCompact)
         .windowResizability(.contentSize)
         .environmentObject(appState)
-        .environmentObject(appState.navigationState)
     }
 }

@@ -13,7 +13,7 @@ struct IceApp: App {
     init() {
         let appState = AppState()
         self._appState = StateObject(wrappedValue: appState)
-        NSSplitViewItem.swizzle()
+        SettingsSplitViewWorkaround.install()
         MigrationManager.migrateAll(appState: appState)
         appDelegate.assignAppState(appState)
     }

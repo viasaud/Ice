@@ -1,0 +1,37 @@
+# Context
+
+This file records the domain language for this private Ice fork. Keep these
+terms aligned with `MEMORY.md` when architecture changes land.
+
+## Product
+
+Ice is a private macOS menu bar utility fork. It manages menu bar items locally
+and keeps settings minimal, native, and personal-use focused.
+
+## Domain Terms
+
+- **Menu bar item**: A status item window owned by an app or by macOS that can
+  appear in the system menu bar.
+- **Control item**: An Ice-owned menu bar item used to control or delimit a
+  section.
+- **Visible section**: The normal menu bar area to the right of the hidden
+  section control item.
+- **Hidden section**: The revealable area between the always-hidden section
+  control item and the hidden section control item.
+- **Always-hidden section**: The more restricted section to the left of the
+  always-hidden control item.
+- **Reveal**: A user action that temporarily shows a hidden section.
+- **Temporary reveal**: Moving one hidden menu bar item into visible space long
+  enough to optionally click it, then returning it to its original section.
+- **Permission gate**: The startup flow that blocks normal app setup until the
+  required Accessibility permission is granted.
+- **Settings window**: The single-page macOS 26 settings interface for this
+  fork.
+
+## Standing Constraints
+
+- Do not reintroduce Ice Bar, Show on Scroll, hotkeys, multi-pane settings,
+  public update flows, telemetry, donation/support links, or release
+  infrastructure.
+- Do not require Screen & System Audio Recording for normal operation.
+- Accessibility remains required for core menu bar management.

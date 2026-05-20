@@ -175,9 +175,8 @@ struct PermissionsView: View {
             return
         }
 
-        permission.performRequest()
         Task {
-            await permission.waitForPermission()
+            await permissionsManager.requestAccessibilityPermissionAndWait()
             appState.activate(withPolicy: .regular)
             openWindow(id: Constants.permissionsWindowID)
         }
@@ -187,8 +186,6 @@ struct PermissionsView: View {
         guard let appState = permissionsManager.appState else {
             return
         }
-        appState.performSetup()
-        appState.permissionsWindow?.close()
-        appState.appDelegate?.openSettingsWindow()
+        appState.lifecycleCoordinator.continueAfterPermissions()
     }
 }
