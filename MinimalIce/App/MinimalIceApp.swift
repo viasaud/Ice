@@ -1,12 +1,12 @@
 //
-//  IceApp.swift
-//  Ice
+//  MinimalIceApp.swift
+//  Minimal Ice
 //
 
 import SwiftUI
 
 @main
-struct IceApp: App {
+struct MinimalIceApp: App {
     @NSApplicationDelegateAdaptor var appDelegate: AppDelegate
     @StateObject private var appState: AppState
 

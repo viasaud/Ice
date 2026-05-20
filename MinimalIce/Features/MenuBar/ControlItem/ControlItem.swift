@@ -342,10 +342,10 @@ final class ControlItem {
 
     /// Creates a menu to show under the control item.
     private func createMenu(with appState: AppState) -> NSMenu {
-        let menu = NSMenu(title: "Ice")
+        let menu = NSMenu(title: "Minimal Ice")
 
         let settingsItem = NSMenuItem(
-            title: "Ice Settings…",
+            title: "Minimal Ice Settings…",
             action: #selector(AppDelegate.openSettingsWindow),
             keyEquivalent: ","
         )
@@ -376,7 +376,7 @@ final class ControlItem {
         menu.addItem(.separator())
 
         let quitItem = NSMenuItem(
-            title: "Quit Ice",
+            title: "Quit Minimal Ice",
             action: #selector(NSApp.terminate),
             keyEquivalent: "q"
         )

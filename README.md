@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="Ice/Assets.xcassets/AppIcon.appiconset/icon_512x512@2x.png" width="132" alt="Ice app icon">
+  <img src="MinimalIce/Supporting/Assets.xcassets/AppIcon.appiconset/icon_512x512@2x.png" width="132" alt="Minimal Ice app icon">
 </p>
 
-<h1 align="center">Ice</h1>
+<h1 align="center">Minimal Ice</h1>
 
 <p align="center">
   A minimal, private macOS menu bar utility tuned for a clean local build.
@@ -17,7 +17,7 @@
 
 ## Overview
 
-Ice is a private personal-use fork of the original Ice macOS menu bar utility.
+Minimal Ice is a private personal-use fork of the original Ice macOS menu bar utility.
 It keeps the core menu bar management experience and removes the parts that are
 not needed for a local-only build: public distribution, automatic updates,
 release feeds, funding links, support links, and public issue workflows.
@@ -46,7 +46,7 @@ Open `Ice.xcodeproj` in Xcode and run the `Ice` scheme, or build from Terminal:
 xcodebuild -project Ice.xcodeproj -scheme Ice -configuration Debug build
 ```
 
-The project uses local ad hoc signing for personal builds. Ice requires
+The project uses local ad hoc signing for personal builds. Minimal Ice requires
 Accessibility permission for menu bar management. Normal operation should not
 require Screen & System Audio Recording permission.
 
@@ -60,11 +60,13 @@ Sparkle and the old update feed are intentionally not included.
 
 ## Repository Shape
 
-This repository is app source plus local build context. It intentionally does
-not include public GitHub issue templates, funding metadata, release automation,
-or support flows.
+This repository is app source plus local build context. The app source lives in
+`MinimalIce/`, grouped by `App`, `Features`, `Infrastructure`, `Shared`, and
+`Supporting` so Xcode and coding agents see the same map. The repository
+intentionally does not include public GitHub issue templates, funding metadata,
+release automation, or support flows.
 
 ## License
 
-Ice remains available under the [GPL-3.0 license](LICENSE). The original license
-and copyright notices are preserved because this is a derivative fork.
+Minimal Ice remains available under the [GPL-3.0 license](LICENSE). The original
+license and copyright notices are preserved because this is a derivative fork.

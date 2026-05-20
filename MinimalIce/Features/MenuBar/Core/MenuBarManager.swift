@@ -191,10 +191,10 @@ final class MenuBarManager: ObservableObject {
 
     /// Shows the right-click menu.
     func showRightClickMenu(at point: CGPoint) {
-        let menu = NSMenu(title: "Ice")
+        let menu = NSMenu(title: "Minimal Ice")
 
         let settingsItem = NSMenuItem(
-            title: "Ice Settings…",
+            title: "Minimal Ice Settings…",
             action: #selector(AppDelegate.openSettingsWindow),
             keyEquivalent: ","
         )

@@ -135,7 +135,7 @@ struct SettingsView: View {
     @ViewBuilder
     private var aboutSection: some View {
         settingsSection("About") {
-            SettingsRow("Ice") {
+            SettingsRow("Minimal Ice") {
                 Text(Constants.versionString)
                     .foregroundStyle(.secondary)
             }
