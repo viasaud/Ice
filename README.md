@@ -18,7 +18,7 @@ Open `Ice.xcodeproj` in Xcode and run the `Ice` scheme, or build from Terminal:
 xcodebuild -project Ice.xcodeproj -scheme Ice -configuration Debug build
 ```
 
-The project uses local ad hoc signing for personal builds. If Xcode prompts for privacy permissions, grant Accessibility and Screen Recording as needed for menu bar management features.
+The project uses local ad hoc signing for personal builds. Ice requires Accessibility permission for menu bar management; normal operation should not require Screen & System Audio Recording permission.
 
 ## Current Dependencies
 

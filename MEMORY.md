@@ -30,7 +30,7 @@ constraints, or user preferences change.
 - Swift version: 6.
 - App marketing versions use the `year.month.commitNumber` pattern, such as
   `26.5.3`. Bump the version for every commit without waiting for a reminder.
-  The current marketing version is `26.5.10`.
+  The current marketing version is `26.5.11`.
 - Local builds are ad-hoc signed because this machine currently has no valid
   code-signing identities.
 - Ad-hoc signing can make macOS privacy/TCC registration unreliable, especially
