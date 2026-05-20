@@ -28,9 +28,9 @@ constraints, or user preferences change.
 - Bundle identifier: `com.personal.Ice`.
 - Build target: macOS 26.
 - Swift version: 6.
-- App marketing versions use the `year.month` pattern, with patch updates as
-  `year.month.update` such as `26.5.3`. The current marketing version is
-  `26.5`.
+- App marketing versions use the `year.month.commitNumber` pattern, such as
+  `26.5.3`. Bump the version for every commit without waiting for a reminder.
+  The current marketing version is `26.5.10`.
 - Local builds are ad-hoc signed because this machine currently has no valid
   code-signing identities.
 - Ad-hoc signing can make macOS privacy/TCC registration unreliable, especially
