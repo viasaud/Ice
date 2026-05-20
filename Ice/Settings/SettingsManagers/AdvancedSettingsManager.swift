@@ -16,14 +16,8 @@ final class AdvancedSettingsManager: ObservableObject {
     /// is enabled.
     @Published var enableAlwaysHiddenSection = false
 
-    /// A Boolean value that indicates whether the always-hidden section
-    /// can be toggled by holding down the Option key.
-    @Published var canToggleAlwaysHiddenSection = true
-
     /// Time interval to temporarily show items for.
     @Published var tempShowInterval: TimeInterval = 15
-
-    @Published var showContextMenuOnRightClick = true
 
     /// Storage for internal observers.
     private var cancellables = Set<AnyCancellable>()
@@ -43,9 +37,7 @@ final class AdvancedSettingsManager: ObservableObject {
     private func loadInitialState() {
         Defaults.ifPresent(key: .showSectionDividers, assign: &showSectionDividers)
         Defaults.ifPresent(key: .enableAlwaysHiddenSection, assign: &enableAlwaysHiddenSection)
-        Defaults.ifPresent(key: .canToggleAlwaysHiddenSection, assign: &canToggleAlwaysHiddenSection)
         Defaults.ifPresent(key: .tempShowInterval, assign: &tempShowInterval)
-        Defaults.ifPresent(key: .showContextMenuOnRightClick, assign: &showContextMenuOnRightClick)
     }
 
     private func configureCancellables() {
@@ -68,27 +60,10 @@ final class AdvancedSettingsManager: ObservableObject {
             }
             .store(in: &c)
 
-        $canToggleAlwaysHiddenSection
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] canToggle in
-                Defaults.set(canToggle, forKey: .canToggleAlwaysHiddenSection)
-                if !canToggle {
-                    self?.hideAlwaysHiddenSection()
-                }
-            }
-            .store(in: &c)
-
         $tempShowInterval
             .receive(on: DispatchQueue.main)
             .sink { interval in
                 Defaults.set(interval, forKey: .tempShowInterval)
-            }
-            .store(in: &c)
-
-        $showContextMenuOnRightClick
-            .receive(on: DispatchQueue.main)
-            .sink { showAll in
-                Defaults.set(showAll, forKey: .showContextMenuOnRightClick)
             }
             .store(in: &c)
 

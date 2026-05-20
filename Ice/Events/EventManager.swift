@@ -148,10 +148,12 @@ extension EventManager {
             // Short delay helps the toggle action feel more natural.
             try? await Task.sleep(for: .milliseconds(50))
 
-            if NSEvent.modifierFlags == .control {
+            let modifierFlags = NSEvent.modifierFlags
+
+            if modifierFlags.contains(.control) {
                 handleShowRightClickMenu()
             } else if
-                NSEvent.modifierFlags == .option,
+                modifierFlags.contains(.option),
                 canRevealAlwaysHiddenSection
             {
                 if let alwaysHiddenSection = appState.menuBarManager.section(withName: .alwaysHidden) {
@@ -170,7 +172,6 @@ extension EventManager {
     private func handleShowRightClickMenu() {
         guard
             let appState,
-            appState.settingsManager.advancedSettingsManager.showContextMenuOnRightClick,
             isMouseInsideEmptyMenuBarSpace,
             let mouseLocation = MouseCursor.locationAppKit
         else {
@@ -411,16 +412,12 @@ extension EventManager {
     /// A Boolean value that indicates whether the always-hidden section can be
     /// revealed by a user action.
     var canRevealAlwaysHiddenSection: Bool {
-        guard
-            let appState,
-            let alwaysHiddenSection = appState.menuBarManager.section(withName: .alwaysHidden),
-            alwaysHiddenSection.isEnabled
-        else {
+        guard let appState else {
             return false
         }
 
         let advancedManager = appState.settingsManager.advancedSettingsManager
-        return advancedManager.enableAlwaysHiddenSection && advancedManager.canToggleAlwaysHiddenSection
+        return advancedManager.enableAlwaysHiddenSection
     }
 }
 

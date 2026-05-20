@@ -148,9 +148,7 @@ extension Defaults {
 
         case showSectionDividers = "ShowSectionDividers"
         case enableAlwaysHiddenSection = "EnableAlwaysHiddenSection"
-        case canToggleAlwaysHiddenSection = "CanToggleAlwaysHiddenSection"
         case tempShowInterval = "TempShowInterval"
-        case showContextMenuOnRightClick = "ShowContextMenuOnRightClick"
 
         // MARK: Migration
 

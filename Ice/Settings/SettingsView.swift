@@ -124,27 +124,11 @@ struct SettingsView: View {
                     .controlSize(.mini)
             }
 
-            SettingsRow("Open menu on right-click") {
-                Toggle("Open menu on right-click", isOn: advancedManager.bindings.showContextMenuOnRightClick)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .controlSize(.mini)
-            }
-
             SettingsRow("Use an always-hidden section") {
                 Toggle("Use an always-hidden section", isOn: advancedManager.bindings.enableAlwaysHiddenSection)
                     .labelsHidden()
                     .toggleStyle(.switch)
                     .controlSize(.mini)
-            }
-
-            if advancedManager.enableAlwaysHiddenSection {
-                SettingsRow("Allow the always-hidden section to be revealed") {
-                    Toggle("Allow the always-hidden section to be revealed", isOn: advancedManager.bindings.canToggleAlwaysHiddenSection)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                        .controlSize(.mini)
-                }
             }
 
             SettingsRow("Hide click-revealed items after") {
@@ -188,15 +172,7 @@ struct SettingsView: View {
     }
 
     private var alwaysHiddenSectionDescription: LocalizedStringKey {
-        if !advancedManager.canToggleAlwaysHiddenSection {
-            return "The always-hidden section cannot be revealed while this is off."
-        }
-
-        if generalManager.showOnClick {
-            return "To reveal the always-hidden section, Option-click the chevron or an empty menu bar area."
-        } else {
-            return "To reveal the always-hidden section, Option-click the chevron."
-        }
+        "To reveal the always-hidden section, Option-click the chevron."
     }
 
     private func formattedToSeconds(_ interval: TimeInterval) -> LocalizedStringKey {

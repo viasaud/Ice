@@ -237,7 +237,7 @@ final class ControlItem {
         }
         button.target = self
         button.action = #selector(performAction)
-        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        button.sendAction(on: [.leftMouseDown, .rightMouseUp])
     }
 
     /// Updates the appearance of the status item using the given hiding state.
@@ -326,10 +326,12 @@ final class ControlItem {
         }
         switch event.type {
         case .leftMouseDown, .leftMouseUp:
-            if NSEvent.modifierFlags == .control {
+            let modifierFlags = event.modifierFlags
+
+            if modifierFlags.contains(.control) {
                 statusItem.showMenu(createMenu(with: appState))
             } else if
-                NSEvent.modifierFlags == .option,
+                modifierFlags.contains(.option),
                 canRevealAlwaysHiddenSection(with: appState)
             {
                 if let alwaysHiddenSection = appState.menuBarManager.section(withName: .alwaysHidden) {
@@ -433,15 +435,8 @@ final class ControlItem {
     /// A Boolean value that indicates whether the always-hidden section can be
     /// revealed by a user action.
     private func canRevealAlwaysHiddenSection(with appState: AppState) -> Bool {
-        guard
-            let alwaysHiddenSection = appState.menuBarManager.section(withName: .alwaysHidden),
-            alwaysHiddenSection.isEnabled
-        else {
-            return false
-        }
-
         let advancedManager = appState.settingsManager.advancedSettingsManager
-        return advancedManager.enableAlwaysHiddenSection && advancedManager.canToggleAlwaysHiddenSection
+        return advancedManager.enableAlwaysHiddenSection
     }
 }
 

@@ -31,11 +31,9 @@ struct AdvancedSettingsPane: View {
         IceForm {
             IceSection {
                 showSectionDividers
-                showContextMenuOnRightClick
             }
             IceSection {
                 enableAlwaysHiddenSection
-                canToggleAlwaysHiddenSection
             }
             IceSection {
                 tempShowIntervalSlider
@@ -70,20 +68,6 @@ struct AdvancedSettingsPane: View {
     }
 
     @ViewBuilder
-    private var canToggleAlwaysHiddenSection: some View {
-        if manager.enableAlwaysHiddenSection {
-            Toggle("Allow the always-hidden section to be revealed", isOn: manager.bindings.canToggleAlwaysHiddenSection)
-                .annotation {
-                    if appState.settingsManager.generalSettingsManager.showOnClick {
-                        Text("To reveal the always-hidden section, Option-click the chevron or an empty menu bar area")
-                    } else {
-                        Text("To reveal the always-hidden section, Option-click the chevron")
-                    }
-                }
-        }
-    }
-
-    @ViewBuilder
     private var tempShowIntervalSlider: some View {
         IceLabeledContent {
             IceSlider(
@@ -103,10 +87,6 @@ struct AdvancedSettingsPane: View {
         .annotation("How long click-revealed menu bar items stay visible before hiding again")
     }
 
-    @ViewBuilder
-    private var showContextMenuOnRightClick: some View {
-        Toggle("Open menu on right-click", isOn: manager.bindings.showContextMenuOnRightClick)
-    }
 }
 
 #Preview {
