@@ -1,7 +1,4 @@
-//
-//  MenuBarItemManager+Cache.swift
-//  Ice
-//
+import CoreGraphics
 
 extension MenuBarItemManager {
     /// Cache for menu bar items.
@@ -86,12 +83,6 @@ extension MenuBarItemManager {
     ) {
         Logger.itemManager.debug("Caching menu bar items")
 
-        let classifiedItems = MenuBarSectionLayout.classify(
-            items: otherItems,
-            hiddenControlItem: hiddenControlItem,
-            alwaysHiddenControlItem: alwaysHiddenControlItem
-        )
-
         var cache = ItemCache()
         var tempShownItems = [(MenuBarItem, MoveDestination)]()
 
@@ -102,7 +93,11 @@ extension MenuBarItemManager {
                 // items are cached, use the return destinations to insert the items into the cache
                 // at the correct position.
                 tempShownItems.append((item, context.returnDestination))
-            } else if let sectionName = classifiedItems.first(where: { $0.value.contains(item) })?.key {
+            } else if let sectionName = sectionName(
+                for: item.frame,
+                hiddenControlItemFrame: hiddenControlItem.frame,
+                alwaysHiddenControlItemFrame: alwaysHiddenControlItem?.frame
+            ) {
                 cache[sectionName].append(item)
             } else {
                 logNotCachedWarning(for: item)
@@ -114,6 +109,23 @@ extension MenuBarItemManager {
         }
 
         replaceItemCache(with: cache)
+    }
+
+    private func sectionName(
+        for itemFrame: CGRect,
+        hiddenControlItemFrame: CGRect,
+        alwaysHiddenControlItemFrame: CGRect?
+    ) -> MenuBarSection.Name? {
+        if itemFrame.minX >= hiddenControlItemFrame.maxX {
+            return .visible
+        }
+        if let alwaysHiddenControlItemFrame {
+            if itemFrame.maxX <= hiddenControlItemFrame.minX, itemFrame.minX >= alwaysHiddenControlItemFrame.maxX {
+                return .hidden
+            }
+            return itemFrame.maxX <= alwaysHiddenControlItemFrame.minX ? .alwaysHidden : nil
+        }
+        return itemFrame.maxX <= hiddenControlItemFrame.minX ? .hidden : nil
     }
 
     /// Caches the current menu bar items if needed, ensuring that the control

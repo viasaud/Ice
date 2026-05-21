@@ -156,3 +156,8 @@ final class MenuBarItemManager: ObservableObject {
         cancellables = c
     }
 }
+
+extension Logger {
+    /// The logger to use for the menu bar item manager.
+    static let itemManager = Logger(category: "MenuBarItemManager")
+}

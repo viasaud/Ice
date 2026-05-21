@@ -1,89 +1,74 @@
-//
-//  PermissionsManager.swift
-//  Ice
-//
-
+import ApplicationServices
 import Combine
 import Foundation
 
-/// A type that manages the permissions of the app.
 @MainActor
 final class PermissionsManager: ObservableObject {
-    /// The state of the granted permissions for the app.
-    enum PermissionsState {
-        case missingPermissions
-        case hasAllPermissions
-        case hasRequiredPermissions
-    }
+    @Published private(set) var canRunApp = false
 
-    /// The state of the granted permissions for the app.
-    @Published var permissionsState = PermissionsState.missingPermissions
-
-    let accessibilityPermission: AccessibilityPermission
-
-    let allPermissions: [Permission]
-
-    private(set) weak var appState: AppState?
-
-    private var cancellables = Set<AnyCancellable>()
-
-    var requiredPermissions: [Permission] {
-        allPermissions.filter { $0.isRequired }
-    }
-
-    var canRunApp: Bool {
-        requiredPermissions.allSatisfy(\.hasPermission)
-    }
+    private var timerCancellable: AnyCancellable?
+    private var permissionCancellable: AnyCancellable?
 
     init(appState: AppState) {
-        self.appState = appState
-        self.accessibilityPermission = AccessibilityPermission()
-        self.allPermissions = [
-            accessibilityPermission,
-        ]
-        configureCancellables()
+        refreshAllPermissions()
+        startChecking()
     }
 
-    private func configureCancellables() {
-        var c = Set<AnyCancellable>()
-
-        accessibilityPermission.$hasPermission
-        .mapToVoid()
-        .receive(on: DispatchQueue.main)
-        .sink { [weak self] in
-            guard let self else {
-                return
-            }
-            if allPermissions.allSatisfy({ $0.hasPermission }) {
-                permissionsState = .hasAllPermissions
-            } else if requiredPermissions.allSatisfy({ $0.hasPermission }) {
-                permissionsState = .hasRequiredPermissions
-            } else {
-                permissionsState = .missingPermissions
-            }
-        }
-        .store(in: &c)
-
-        cancellables = c
-    }
-
-    /// Refreshes all cached permission state immediately.
     func refreshAllPermissions() {
-        for permission in allPermissions {
-            permission.refresh()
+        let trusted = checkAccessibilityTrust()
+        if canRunApp != trusted {
+            canRunApp = trusted
         }
     }
 
-    /// Stops running all permissions checks.
     func stopAllChecks() {
-        for permission in allPermissions {
-            permission.stopCheck()
-        }
+        timerCancellable?.cancel()
+        timerCancellable = nil
+        permissionCancellable?.cancel()
+        permissionCancellable = nil
     }
 
     func requestAccessibilityPermissionAndWait() async {
-        accessibilityPermission.performRequest()
-        await accessibilityPermission.waitForPermission()
+        _ = checkAccessibilityTrust(prompt: true)
+        await waitForAccessibilityPermission()
         refreshAllPermissions()
+    }
+
+    private func startChecking() {
+        timerCancellable?.cancel()
+        timerCancellable = Timer.publish(every: 2, on: .main, in: .default)
+            .autoconnect()
+            .merge(with: Just(.now))
+            .sink { [weak self] _ in
+                self?.refreshAllPermissions()
+            }
+    }
+
+    private func waitForAccessibilityPermission() async {
+        startChecking()
+        guard !canRunApp else {
+            return
+        }
+        await withCheckedContinuation { continuation in
+            permissionCancellable = $canRunApp.sink { [weak self] canRunApp in
+                guard let self else {
+                    continuation.resume()
+                    return
+                }
+                if canRunApp {
+                    permissionCancellable?.cancel()
+                    continuation.resume()
+                }
+            }
+        }
+    }
+
+    private func checkAccessibilityTrust(prompt: Bool = false) -> Bool {
+        let options = [
+            "AXTrustedCheckOptionPrompt": prompt,
+        ] as CFDictionary
+        let isTrusted = AXIsProcessTrustedWithOptions(options)
+        Defaults.set(isTrusted, forKey: .hasAccessibilityPermission)
+        return isTrusted
     }
 }

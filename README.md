@@ -5,87 +5,42 @@
 <h1 align="center">Minimal Ice</h1>
 
 <p align="center">
-  A minimal, private macOS menu bar utility tuned for a clean local build.
+  A quiet macOS menu bar utility for keeping extra menu bar items out of sight
+  until you need them.
 </p>
 
-<p align="center">
-  <img alt="macOS Tahoe 26.5 SDK" src="https://img.shields.io/badge/macOS-Tahoe%2026.5%20SDK-111111?style=for-the-badge&logo=apple&logoColor=white">
-  <img alt="Swift 6.3" src="https://img.shields.io/badge/Swift-6.3-FA7343?style=for-the-badge&logo=swift&logoColor=white">
-  <img alt="Xcode 26.5" src="https://img.shields.io/badge/Xcode-26.5-147EFB?style=for-the-badge&logo=xcode&logoColor=white">
-  <img alt="GPL 3.0" src="https://img.shields.io/badge/License-GPL--3.0-555555?style=for-the-badge">
-</p>
+## What It Does
 
-## Overview
+Minimal Ice keeps your menu bar clean by tucking selected menu bar items into a
+hidden section. Move your pointer to the chevron to reveal them, use the menu
+when you want more control, and let the app stay out of the way the rest of the
+time.
 
-Minimal Ice is a private personal-use fork of the original Ice macOS menu bar utility.
-It keeps the core menu bar management experience and removes the parts that are
-not needed for a local-only build: public distribution, automatic updates,
-release feeds, funding links, support links, and public issue workflows.
+It is designed to feel native, lightweight, and private: no account, no
+telemetry, no update feed, no background cloud service.
 
-The result is intentionally quiet: native macOS UI, a small settings surface,
-and a codebase shaped around one local owner.
+## How To Use
 
-## Platform
+- Launch **Minimal Ice**.
+- Grant **Accessibility** permission when macOS asks. Minimal Ice needs this to
+  read and rearrange menu bar items.
+- Use the chevron in the menu bar to reveal hidden items.
+- Right-click or Control-click the chevron for reveal mode, dividers,
+  always-hidden items, launch at startup, and quit.
+- Command-drag menu bar items to rearrange them. Minimal Ice temporarily shows
+  all sections while you are arranging items.
 
-| Component | Version |
-| --- | --- |
-| macOS SDK | 26.5 |
-| Deployment target | macOS Tahoe 26.0 |
-| Xcode | 26.5 |
-| Swift compiler | 6.3 |
-| Swift language mode | 6 |
+## Privacy
 
-Xcode 26.5 requires macOS Tahoe 26.2 or later to build. The project currently
-targets macOS Tahoe 26.0 at runtime.
+Minimal Ice works locally on your Mac. It does not collect analytics, phone
+home, show ads, or require a network connection for normal use.
 
-## Build
+## Permission
 
-Open `MinimalIce.xcodeproj` in Xcode and run the `MinimalIce` scheme, or build
-from Terminal:
-
-```sh
-xcodebuild -project MinimalIce.xcodeproj -scheme MinimalIce -configuration Debug build
-```
-
-The project uses local ad hoc signing for personal builds. Minimal Ice requires
-Accessibility permission for menu bar management. Normal operation should not
-require Screen & System Audio Recording permission.
-
-## Dependencies
-
-- AXSwift
-- CompactSlider
-- LaunchAtLogin
-
-Sparkle and the old update feed are intentionally not included.
-
-## Repository Shape
-
-This repository is app source plus local build context. The app source lives in
-`MinimalIce/` so Xcode file-system-synchronized groups and coding agents see the
-same map.
-
-- `MinimalIce/App`: app bootstrap and app-wide state.
-- `MinimalIce/MenuBar`: menu bar sections, control items, item discovery,
-  reveal behavior, movement, clicking, and menu bar hit testing.
-- `MinimalIce/Settings`: the single-page settings window and settings state.
-- `MinimalIce/Permissions`: Accessibility permission model and permission
-  window.
-- `MinimalIce/Platform`: AppKit event monitoring, WindowServer adapters, and
-  private CoreGraphics bridging.
-- `MinimalIce/Persistence`: defaults, migrations, and status-item storage.
-- `MinimalIce/Runtime`: logging, Objective-C storage, runtime shims, and
-  extensions.
-- `MinimalIce/Shared`: small reusable helpers with no feature ownership.
-- `MinimalIce/Supporting`: assets, plist, and entitlements.
-
-The repository root intentionally stays small: `MinimalIce.xcodeproj`,
-`MinimalIce/`, `README.md`, `AGENTS.md`, `LICENSE`, and local git metadata. The
-Xcode project, scheme, built product, and user-facing app name now all carry the
-Minimal Ice name. The repository intentionally does not include public GitHub
-issue templates, funding metadata, release automation, or support flows.
+Minimal Ice requires **Accessibility** permission because managing menu bar items
+uses macOS accessibility APIs. Normal use should not require Screen & System
+Audio Recording permission.
 
 ## License
 
-Minimal Ice remains available under the [GPL-3.0 license](LICENSE). The original
-license and copyright notices are preserved because this is a derivative fork.
+Minimal Ice is available under the [GPL-3.0 license](LICENSE).

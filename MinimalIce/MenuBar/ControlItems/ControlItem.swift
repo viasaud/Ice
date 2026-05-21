@@ -5,7 +5,6 @@
 
 import Cocoa
 import Combine
-import LaunchAtLogin
 
 /// A status item that controls a section in the menu bar.
 @MainActor
@@ -175,7 +174,7 @@ final class ControlItem {
             .store(in: &c)
 
         if let appState {
-            appState.settingsManager.advancedSettingsManager.$showSectionDividers
+            appState.settingsManager.$showSectionDividers
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self] shouldShow in
                     guard
@@ -189,7 +188,7 @@ final class ControlItem {
                 }
                 .store(in: &c)
 
-            appState.settingsManager.advancedSettingsManager.$enableAlwaysHiddenSection
+            appState.settingsManager.$enableAlwaysHiddenSection
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self] enable in
                     guard
@@ -240,8 +239,8 @@ final class ControlItem {
             // Enable the cell, as it may have been previously disabled.
             button.cell?.isEnabled = true
             button.image = switch state {
-            case .hideItems: ControlItemImage.builtin(.chevronLarge).nsImage(for: appState)
-            case .showItems: ControlItemImage.builtin(.chevronLarge).nsImage(for: appState)
+            case .hideItems: ControlItemImages.chevronLarge
+            case .showItems: ControlItemImages.chevronLarge
             }
         case .hidden, .alwaysHidden:
             switch state {
@@ -253,15 +252,15 @@ final class ControlItem {
                 button.isHighlighted = false
                 button.image = nil
             case .showItems:
-                isVisible = appState.settingsManager.advancedSettingsManager.showSectionDividers
+                isVisible = appState.settingsManager.showSectionDividers
                 // Enable the cell, as it may have been previously disabled.
                 button.cell?.isEnabled = true
                 // Set the image based on the section name and the hiding state.
                 switch section.name {
                 case .hidden:
-                    button.image = ControlItemImage.builtin(.chevronLarge).nsImage(for: appState)
+                    button.image = ControlItemImages.chevronLarge
                 case .alwaysHidden:
-                    button.image = ControlItemImage.builtin(.chevronSmall).nsImage(for: appState)
+                    button.image = ControlItemImages.chevronSmall
                 case .visible: break
                 }
             }
@@ -313,170 +312,15 @@ final class ControlItem {
             let modifierFlags = event.modifierFlags
 
             if modifierFlags.contains(.control) {
-                statusItem.showMenu(createMenu())
+                statusItem.showMenu(appState.menuBarManager.createMenu())
             } else {
                 appState.toggleMenuBarSection(using: modifierFlags, preferredSection: section)
             }
         case .rightMouseUp:
-            statusItem.showMenu(createMenu())
+            statusItem.showMenu(appState.menuBarManager.createMenu())
         default:
             break
         }
-    }
-
-    /// Creates a menu to show under the control item.
-    private func createMenu() -> NSMenu {
-        let menu = NSMenu(title: "Minimal Ice")
-
-        let revealModeItem = NSMenuItem(
-            title: "Reveal By",
-            action: nil,
-            keyEquivalent: ""
-        )
-        revealModeItem.image = MenuItemIcon.reveal
-        revealModeItem.submenu = createRevealModeMenu()
-        menu.addItem(revealModeItem)
-
-        let sectionDividersItem = NSMenuItem(
-            title: "Show Dividers",
-            action: #selector(toggleSectionDividers),
-            keyEquivalent: ""
-        )
-        sectionDividersItem.image = MenuItemIcon.dividers
-        sectionDividersItem.target = self
-        sectionDividersItem.state = appState?.settingsManager.advancedSettingsManager.showSectionDividers == true ? .on : .off
-        menu.addItem(sectionDividersItem)
-
-        let alwaysHiddenSectionItem = NSMenuItem(
-            title: "Always-Hidden Section",
-            action: #selector(toggleAlwaysHiddenSection),
-            keyEquivalent: ""
-        )
-        alwaysHiddenSectionItem.image = MenuItemIcon.alwaysHidden
-        alwaysHiddenSectionItem.target = self
-        alwaysHiddenSectionItem.state = appState?.settingsManager.advancedSettingsManager.enableAlwaysHiddenSection == true ? .on : .off
-        menu.addItem(alwaysHiddenSectionItem)
-
-        let rehideIntervalItem = NSMenuItem(
-            title: "Hide After",
-            action: nil,
-            keyEquivalent: ""
-        )
-        rehideIntervalItem.image = MenuItemIcon.hideAfter
-        rehideIntervalItem.submenu = createRehideIntervalMenu()
-        rehideIntervalItem.isEnabled = appState?.settingsManager.hiddenItemsActivationMode == .click
-        menu.addItem(rehideIntervalItem)
-
-        menu.addItem(.separator())
-
-        let launchAtLoginItem = NSMenuItem(
-            title: "Launch at Startup",
-            action: #selector(toggleLaunchAtLogin),
-            keyEquivalent: ""
-        )
-        launchAtLoginItem.image = MenuItemIcon.launchAtStartup
-        launchAtLoginItem.target = self
-        launchAtLoginItem.state = LaunchAtLogin.isEnabled ? .on : .off
-        menu.addItem(launchAtLoginItem)
-
-        menu.addItem(.separator())
-
-        let versionItem = NSMenuItem(
-            title: "Minimal Ice \(Constants.versionString)",
-            action: nil,
-            keyEquivalent: ""
-        )
-        versionItem.image = MenuItemIcon.version
-        versionItem.isEnabled = false
-        menu.addItem(versionItem)
-
-        let quitItem = NSMenuItem(
-            title: "Quit",
-            action: #selector(NSApp.terminate),
-            keyEquivalent: ""
-        )
-        quitItem.image = MenuItemIcon.quit
-        menu.addItem(quitItem)
-
-        return menu
-    }
-
-    private func createRehideIntervalMenu() -> NSMenu {
-        let menu = NSMenu(title: "Hide After")
-        let selectedInterval = appState?.settingsManager.advancedSettingsManager.tempShowInterval
-
-        for interval in Self.rehideIntervals {
-            let item = NSMenuItem(
-                title: interval.rehideIntervalTitle,
-                action: #selector(selectRehideInterval),
-                keyEquivalent: ""
-            )
-            item.image = MenuItemIcon.interval
-            item.target = self
-            item.representedObject = interval
-            item.state = interval == selectedInterval ? .on : .off
-            menu.addItem(item)
-        }
-
-        return menu
-    }
-
-    private func createRevealModeMenu() -> NSMenu {
-        let menu = NSMenu(title: "Reveal By")
-        let selectedMode = appState?.settingsManager.hiddenItemsActivationMode
-
-        for mode in HiddenItemsActivationMode.allCases {
-            let item = NSMenuItem(
-                title: mode.menuTitle,
-                action: #selector(selectRevealMode),
-                keyEquivalent: ""
-            )
-            item.image = mode.menuIcon
-            item.target = self
-            item.representedObject = mode.rawValue
-            item.state = mode == selectedMode ? .on : .off
-            menu.addItem(item)
-        }
-
-        return menu
-    }
-
-    @objc private func selectRevealMode(_ menuItem: NSMenuItem) {
-        guard
-            let rawValue = menuItem.representedObject as? String,
-            let mode = HiddenItemsActivationMode(rawValue: rawValue)
-        else {
-            return
-        }
-        appState?.settingsManager.hiddenItemsActivationMode = mode
-    }
-
-    @objc private func toggleSectionDividers(_ menuItem: NSMenuItem) {
-        guard let manager = appState?.settingsManager.advancedSettingsManager else {
-            return
-        }
-        manager.showSectionDividers.toggle()
-        menuItem.state = manager.showSectionDividers ? .on : .off
-    }
-
-    @objc private func toggleAlwaysHiddenSection(_ menuItem: NSMenuItem) {
-        guard let manager = appState?.settingsManager.advancedSettingsManager else {
-            return
-        }
-        manager.enableAlwaysHiddenSection.toggle()
-        menuItem.state = manager.enableAlwaysHiddenSection ? .on : .off
-    }
-
-    @objc private func selectRehideInterval(_ menuItem: NSMenuItem) {
-        guard let interval = menuItem.representedObject as? TimeInterval else {
-            return
-        }
-        appState?.settingsManager.advancedSettingsManager.tempShowInterval = interval
-    }
-
-    @objc private func toggleLaunchAtLogin(_ menuItem: NSMenuItem) {
-        LaunchAtLogin.isEnabled.toggle()
-        menuItem.state = LaunchAtLogin.isEnabled ? .on : .off
     }
 
     /// Adds the control item to the menu bar.
@@ -499,41 +343,26 @@ final class ControlItem {
         statusItem.isVisible = false
         StatusItemDefaults[.preferredPosition, autosaveName] = cached
     }
-
 }
 
-private extension ControlItem {
-    static let rehideIntervals: [TimeInterval] = [0, 5, 10, 15, 20, 30]
-}
+private enum ControlItemImages {
+    static let chevronLarge = chevron(size: CGSize(width: 12, height: 12), lineWidth: 2)
+    static let chevronSmall = chevron(size: CGSize(width: 9, height: 9), lineWidth: 2)
 
-// MARK: - Logger
-private extension Logger {
-    /// The logger to use for control items.
-    static let controlItem = Logger(category: "ControlItem")
-}
-
-private extension HiddenItemsActivationMode {
-    var menuTitle: String {
-        switch self {
-        case .click:
-            "On Click"
-        case .hover:
-            "On Hover"
+    private static func chevron(size: CGSize, lineWidth: CGFloat) -> NSImage {
+        let image = NSImage(size: size, flipped: false) { bounds in
+            let insetBounds = bounds.insetBy(dx: lineWidth / 2, dy: lineWidth / 2)
+            let path = NSBezierPath()
+            path.move(to: CGPoint(x: (insetBounds.midX + insetBounds.maxX) / 2, y: insetBounds.maxY))
+            path.line(to: CGPoint(x: (insetBounds.minX + insetBounds.midX) / 2, y: insetBounds.midY))
+            path.line(to: CGPoint(x: (insetBounds.midX + insetBounds.maxX) / 2, y: insetBounds.minY))
+            path.lineWidth = lineWidth
+            path.lineCapStyle = .butt
+            NSColor.black.setStroke()
+            path.stroke()
+            return true
         }
-    }
-
-    var menuIcon: NSImage? {
-        switch self {
-        case .click:
-            MenuItemIcon.click
-        case .hover:
-            MenuItemIcon.hover
-        }
-    }
-}
-
-private extension TimeInterval {
-    var rehideIntervalTitle: String {
-        self == 0 ? "Immediately" : "\(Int(self)) Seconds"
+        image.isTemplate = true
+        return image
     }
 }

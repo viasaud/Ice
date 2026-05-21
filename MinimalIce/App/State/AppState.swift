@@ -30,12 +30,6 @@ final class AppState: ObservableObject {
     /// Global cache for menu bar item images.
     private(set) lazy var imageCache = MenuBarItemImageCache(appState: self)
 
-    /// Coordinates startup and permission-gated app setup.
-    private(set) lazy var lifecycleCoordinator = AppLifecycleCoordinator(appState: self)
-
-    /// The app's delegate.
-    private(set) weak var appDelegate: AppDelegate?
-
     /// A Boolean value that indicates whether the "ShowOnHover" feature is prevented.
     private(set) var isShowOnHoverPrevented = false
 
@@ -153,15 +147,6 @@ final class AppState: ObservableObject {
         imageCache.performSetup()
     }
 
-    /// Assigns the app delegate to the app state.
-    func assignAppDelegate(_ appDelegate: AppDelegate) {
-        guard self.appDelegate == nil else {
-            Logger.appState.warning("Multiple attempts made to assign app delegate")
-            return
-        }
-        self.appDelegate = appDelegate
-    }
-
     /// Toggles the appropriate menu bar section for the current modifier flags.
     func toggleMenuBarSection(using modifierFlags: NSEvent.ModifierFlags, preferredSection: MenuBarSection? = nil) {
         switch settingsManager.revealPolicy.toggleDecision(
@@ -229,9 +214,6 @@ final class AppState: ObservableObject {
         isShowOnHoverPrevented = false
     }
 }
-
-// MARK: AppState: BindingExposable
-extension AppState: BindingExposable { }
 
 // MARK: - Logger
 private extension Logger {

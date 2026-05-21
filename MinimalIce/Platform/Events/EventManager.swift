@@ -15,6 +15,9 @@ final class EventManager {
     /// Storage for internal observers.
     private var cancellables = Set<AnyCancellable>()
 
+    /// Retries hiding click-revealed sections after menu bar item menus close.
+    private var clickRevealRehideTimer: Timer?
+
     // MARK: Monitors
 
     /// Monitor for mouse down events.
@@ -56,6 +59,7 @@ final class EventManager {
     private(set) lazy var mouseMovedMonitor = UniversalEventMonitor(
         mask: .mouseMoved
     ) { [weak self] event in
+        self?.handleHideAfterClickReveal()
         self?.handleShowOnHover()
         return event
     }
@@ -240,6 +244,46 @@ extension EventManager {
         }
     }
 
+    // MARK: Handle Hide After Click Reveal
+
+    private func handleHideAfterClickReveal() {
+        guard
+            let appState,
+            appState.settingsManager.behavior.revealsHiddenItemsOnClick
+        else {
+            return
+        }
+
+        guard !isMouseInsideMenuBar else {
+            clickRevealRehideTimer?.invalidate()
+            clickRevealRehideTimer = nil
+            return
+        }
+
+        guard !isMenuBarItemInterfaceShown, !appState.itemManager.isMouseButtonDown else {
+            scheduleClickRevealRehide()
+            return
+        }
+
+        clickRevealRehideTimer?.invalidate()
+        clickRevealRehideTimer = nil
+        appState.menuBarManager.section(withName: .hidden)?.hide()
+        appState.menuBarManager.section(withName: .alwaysHidden)?.hide()
+    }
+
+    private func scheduleClickRevealRehide() {
+        guard clickRevealRehideTimer == nil else {
+            return
+        }
+
+        clickRevealRehideTimer = .scheduledTimer(withTimeInterval: 0.25, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                self?.clickRevealRehideTimer = nil
+                self?.handleHideAfterClickReveal()
+            }
+        }
+    }
+
     // MARK: Handle Show On Hover
 
     private func handleShowOnHover() {
@@ -324,6 +368,17 @@ extension EventManager {
             return mouseLocation.y > screen.visibleFrame.maxY && mouseLocation.y <= screen.frame.maxY
         }
         return false
+    }
+
+    /// A Boolean value that indicates whether a menu or popover opened from a
+    /// menu bar item is still visible.
+    var isMenuBarItemInterfaceShown: Bool {
+        WindowInfo.getOnScreenWindows(excludeDesktopWindows: true).contains { window in
+            window.isOnScreen && (
+                window.layer == CGWindowLevelForKey(.popUpMenuWindow) ||
+                window.layer == CGWindowLevelForKey(.popUpMenuWindow) + 1
+            )
+        }
     }
 
     /// A Boolean value that indicates whether the mouse pointer is within
@@ -411,4 +466,24 @@ extension EventManager {
 // MARK: - Logger
 private extension Logger {
     static let eventManager = Logger(category: "EventManager")
+}
+
+/// A value snapshot of the pointer's relationship to the menu bar.
+struct MenuBarHitTest: Equatable {
+    var isInsideMenuBar: Bool
+    var isInsideApplicationMenu: Bool
+    var isInsideMenuBarItem: Bool
+    var isInsideNotch: Bool
+    var isInsideIceIcon: Bool
+
+    var isInsideEmptyMenuBarSpace: Bool {
+        isInsideMenuBar &&
+        !isInsideApplicationMenu &&
+        !isInsideMenuBarItem &&
+        !isInsideNotch
+    }
+
+    var isInsideHoverActivationRegion: Bool {
+        isInsideIceIcon
+    }
 }

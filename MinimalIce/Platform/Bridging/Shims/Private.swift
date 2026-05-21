@@ -3,6 +3,7 @@
 //  Ice
 //
 
+import ApplicationServices
 import CoreGraphics
 
 // MARK: - Bridged Types
@@ -59,6 +60,12 @@ func CGSEventIsAppUnresponsive(
     _ cid: CGSConnectionID,
     _ psn: inout ProcessSerialNumber
 ) -> Bool
+
+@_silgen_name("GetProcessForPID")
+func GetProcessForPID(
+    _ pid: pid_t,
+    _ psn: inout ProcessSerialNumber
+) -> OSStatus
 
 // MARK: - CGSSpace Functions
 

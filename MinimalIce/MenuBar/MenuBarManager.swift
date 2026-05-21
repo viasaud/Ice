@@ -159,7 +159,7 @@ final class MenuBarManager: ObservableObject {
         menu.popUp(positioning: nil, at: point, in: nil)
     }
 
-    private func createMenu() -> NSMenu {
+    func createMenu() -> NSMenu {
         let menu = NSMenu(title: "Minimal Ice")
 
         let revealModeItem = NSMenuItem(
@@ -178,7 +178,7 @@ final class MenuBarManager: ObservableObject {
         )
         sectionDividersItem.image = MenuItemIcon.dividers
         sectionDividersItem.target = self
-        sectionDividersItem.state = appState?.settingsManager.advancedSettingsManager.showSectionDividers == true ? .on : .off
+        sectionDividersItem.state = appState?.settingsManager.showSectionDividers == true ? .on : .off
         menu.addItem(sectionDividersItem)
 
         let alwaysHiddenSectionItem = NSMenuItem(
@@ -188,7 +188,7 @@ final class MenuBarManager: ObservableObject {
         )
         alwaysHiddenSectionItem.image = MenuItemIcon.alwaysHidden
         alwaysHiddenSectionItem.target = self
-        alwaysHiddenSectionItem.state = appState?.settingsManager.advancedSettingsManager.enableAlwaysHiddenSection == true ? .on : .off
+        alwaysHiddenSectionItem.state = appState?.settingsManager.enableAlwaysHiddenSection == true ? .on : .off
         menu.addItem(alwaysHiddenSectionItem)
 
         let rehideIntervalItem = NSMenuItem(
@@ -257,7 +257,7 @@ final class MenuBarManager: ObservableObject {
 
     private func createRehideIntervalMenu() -> NSMenu {
         let menu = NSMenu(title: "Hide After")
-        let selectedInterval = appState?.settingsManager.advancedSettingsManager.tempShowInterval
+        let selectedInterval = appState?.settingsManager.tempShowInterval
 
         for interval in Self.rehideIntervals {
             let item = NSMenuItem(
@@ -286,7 +286,7 @@ final class MenuBarManager: ObservableObject {
     }
 
     @objc private func toggleSectionDividers(_ menuItem: NSMenuItem) {
-        guard let manager = appState?.settingsManager.advancedSettingsManager else {
+        guard let manager = appState?.settingsManager else {
             return
         }
         manager.showSectionDividers.toggle()
@@ -294,7 +294,7 @@ final class MenuBarManager: ObservableObject {
     }
 
     @objc private func toggleAlwaysHiddenSection(_ menuItem: NSMenuItem) {
-        guard let manager = appState?.settingsManager.advancedSettingsManager else {
+        guard let manager = appState?.settingsManager else {
             return
         }
         manager.enableAlwaysHiddenSection.toggle()
@@ -305,7 +305,7 @@ final class MenuBarManager: ObservableObject {
         guard let interval = menuItem.representedObject as? TimeInterval else {
             return
         }
-        appState?.settingsManager.advancedSettingsManager.tempShowInterval = interval
+        appState?.settingsManager.tempShowInterval = interval
     }
 
     @objc private func toggleLaunchAtLogin(_ menuItem: NSMenuItem) {
@@ -318,9 +318,6 @@ final class MenuBarManager: ObservableObject {
         sections.first { $0.name == name }
     }
 }
-
-// MARK: MenuBarManager: BindingExposable
-extension MenuBarManager: BindingExposable { }
 
 private extension MenuBarManager {
     static let rehideIntervals: [TimeInterval] = [0, 5, 10, 15, 20, 30]
@@ -349,6 +346,25 @@ private extension HiddenItemsActivationMode {
 private extension TimeInterval {
     var rehideIntervalTitle: String {
         self == 0 ? "Immediately" : "\(Int(self)) Seconds"
+    }
+}
+
+private enum MenuItemIcon {
+    static let reveal = symbol("eye")
+    static let click = symbol("cursorarrow.click")
+    static let hover = symbol("hand.point.up.left")
+    static let dividers = symbol("rectangle.split.3x1")
+    static let alwaysHidden = symbol("eye.slash")
+    static let hideAfter = symbol("timer")
+    static let interval = symbol("clock")
+    static let launchAtStartup = symbol("play.circle")
+    static let version = symbol("info.circle")
+    static let quit = symbol("power")
+
+    private static func symbol(_ name: String) -> NSImage? {
+        let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)
+        image?.isTemplate = true
+        return image
     }
 }
 

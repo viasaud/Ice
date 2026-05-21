@@ -201,9 +201,6 @@ final class MenuBarSection {
     }
 }
 
-// MARK: MenuBarSection: BindingExposable
-extension MenuBarSection: BindingExposable { }
-
 // MARK: - Logger
 private extension Logger {
     static let menuBarSection = Logger(category: "MenuBarSection")

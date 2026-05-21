@@ -5,27 +5,28 @@ This repository uses Xcode file-system-synchronized groups. The filesystem under
 
 ## Source Map
 
-- `MinimalIce/App/Bootstrap`: SwiftUI app entry point, delegate, and lifecycle
-  coordination.
+- `MinimalIce/App/Bootstrap`: SwiftUI app entry point plus the app delegate and
+  permission-gated launch flow. Keep bootstrap in `MinimalIceApp.swift` unless
+  it becomes substantially more complex.
 - `MinimalIce/App/State`: app-wide state composition.
 - `MinimalIce/MenuBar`: core menu bar orchestration.
 - `MinimalIce/MenuBar/Sections`: visible, hidden, and always-hidden section
-  models plus section layout classification.
+  models.
 - `MinimalIce/MenuBar/ControlItems`: Minimal Ice-owned status items used to
-  control or delimit sections.
+  control or delimit sections. Built-in chevron drawing stays local to
+  `ControlItem`.
 - `MinimalIce/MenuBar/Items`: menu bar item identity, window snapshots, image
   caching, and item discovery.
 - `MinimalIce/MenuBar/Items/ItemManagement`: item cache refresh, CGEvent
-  routing, movement, clicking, temporary reveal, and rehide behavior.
-- `MinimalIce/MenuBar/HitTesting`: menu bar pointer hit-test results.
-- `MinimalIce/MenuBar/Reveal`: reveal policy decisions.
-- `MinimalIce/Settings`: single-page settings UI plus `State/` for settings
-  persistence and behavior policy.
-- `MinimalIce/Permissions`: Accessibility permission model and window.
+  routing, movement, clicking, temporary reveal, rehide behavior, and section
+  classification.
+- `MinimalIce/Settings/State`: the single settings manager plus reveal policy
+  value types. There is no separate settings UI in this fork.
+- `MinimalIce/Permissions`: Accessibility-only permission checking.
 - `MinimalIce/Platform`: AppKit event monitoring, WindowServer adapters,
   private CoreGraphics bridging, and platform shims.
-- `MinimalIce/Persistence`: defaults, migrations, and status-item storage.
-- `MinimalIce/Runtime`: logging, Objective-C storage, extensions, and runtime
+- `MinimalIce/Persistence`: defaults, status-item defaults, and migrations.
+- `MinimalIce/Runtime`: logging, bundle constants, extensions, and runtime
   shims.
 - `MinimalIce/Shared`: small reusable helpers with no feature ownership.
 - `MinimalIce/Supporting`: assets, plist, and entitlements.
@@ -48,6 +49,31 @@ This repository uses Xcode file-system-synchronized groups. The filesystem under
 - Local builds are ad-hoc signed on this machine.
 - SwiftLint is not part of this fork's current toolchain.
 - Build with `xcodebuild -project MinimalIce.xcodeproj -scheme MinimalIce -configuration Debug build`.
+
+## Simplified Architecture
+
+- Prefer fewer files and fewer shallow modules. If a type has one concrete
+  caller and no independent lifecycle, keep it beside that caller.
+- Do not recreate deleted wrapper files such as `AppLifecycleCoordinator`,
+  generic `Permission`, `GeneralSettingsManager`, `AdvancedSettingsManager`,
+  `MenuBarRevealPolicy`, `MenuBarHitTest`, `MenuBarSectionLayout`,
+  `MenuItemIcon`, `ControlItemImage`, `StatusItemDefaults`,
+  `BindingExposable`, `IceSlider`, `SettingsCard`, or `ObjectStorage`.
+- Keep settings as one `SettingsManager`. If a new setting is needed, add the
+  stored value, defaults persistence, and behavior projection there unless a
+  real second owner appears.
+- Keep permissions Accessibility-only. Do not add a generic permission model or
+  permissions settings UI unless the product truly needs another required
+  permission.
+- Keep event monitoring in the unified monitor file unless a monitor has a
+  genuinely different mechanism, such as the run-loop local event observer.
+- Keep right-click/control-item menu construction owned by `MenuBarManager`.
+  Control items should ask the menu bar manager for menus instead of building
+  duplicate menus.
+- Do not weaken Swift concurrency to simplify code: preserve `@MainActor`
+  isolation for app state, settings, permissions, menu bar orchestration,
+  control items, and event handling; avoid new `nonisolated(unsafe)` unless it
+  is replacing an existing necessary bridge.
 
 ## Domain Language
 

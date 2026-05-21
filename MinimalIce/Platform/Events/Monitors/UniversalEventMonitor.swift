@@ -1,86 +1,135 @@
-//
-//  UniversalEventMonitor.swift
-//  Ice
-//
-
 import Cocoa
 import Combine
 
-/// A type that monitors for local and global events.
-final class UniversalEventMonitor {
-    private let local: LocalEventMonitor
-    private let global: GlobalEventMonitor
+private protocol EventMonitoring: AnyObject {
+    func start()
+    func stop()
+}
 
-    /// Creates an event monitor with the given event type mask and handler.
-    ///
-    /// - Parameters:
-    ///   - mask: An event type mask specifying which events to monitor.
-    ///   - handler: A handler to execute when the event monitor receives
-    ///     an event corresponding to the event types in `mask`.
-    init(mask: NSEvent.EventTypeMask, handler: @escaping (_ event: NSEvent) -> NSEvent?) {
-        self.local = LocalEventMonitor(mask: mask, handler: handler)
-        self.global = GlobalEventMonitor(mask: mask, handler: { _ = handler($0) })
+final class UniversalEventMonitor: EventMonitoring {
+    private let mask: NSEvent.EventTypeMask
+    private let handler: (NSEvent) -> NSEvent?
+    private var localMonitor: Any?
+    private var globalMonitor: Any?
+
+    init(mask: NSEvent.EventTypeMask, handler: @escaping (NSEvent) -> NSEvent?) {
+        self.mask = mask
+        self.handler = handler
     }
 
     deinit {
         stop()
     }
 
-    /// Starts monitoring for events.
     func start() {
-        local.start()
-        global.start()
-    }
-
-    /// Stops monitoring for events.
-    func stop() {
-        local.stop()
-        global.stop()
-    }
-}
-
-extension UniversalEventMonitor {
-    /// A publisher that emits local and global events for an event type mask.
-    struct UniversalEventPublisher: Publisher {
-        typealias Output = NSEvent
-        typealias Failure = Never
-
-        let mask: NSEvent.EventTypeMask
-
-        func receive<S: Subscriber<Output, Failure>>(subscriber: S) {
-            let subscription = UniversalEventSubscription(mask: mask, subscriber: subscriber)
-            subscriber.receive(subscription: subscription)
+        guard localMonitor == nil, globalMonitor == nil else {
+            return
+        }
+        localMonitor = NSEvent.addLocalMonitorForEvents(matching: mask, handler: handler)
+        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: mask) { [handler] event in
+            _ = handler(event)
         }
     }
 
-    /// Returns a publisher that emits local and global events for the given
-    /// event type mask.
-    ///
-    /// - Parameter mask: An event type mask specifying which events to publish.
-    static func publisher(for mask: NSEvent.EventTypeMask) -> UniversalEventPublisher {
-        UniversalEventPublisher(mask: mask)
+    func stop() {
+        [localMonitor, globalMonitor].compactMap { $0 }.forEach(NSEvent.removeMonitor)
+        localMonitor = nil
+        globalMonitor = nil
     }
-}
 
-extension UniversalEventMonitor.UniversalEventPublisher {
-    private final class UniversalEventSubscription<S: Subscriber<Output, Failure>>: Subscription {
-        var subscriber: S?
-        let monitor: UniversalEventMonitor
-
-        init(mask: NSEvent.EventTypeMask, subscriber: S) {
-            self.subscriber = subscriber
-            self.monitor = UniversalEventMonitor(mask: mask) { event in
-                _ = subscriber.receive(event)
+    static func publisher(for mask: NSEvent.EventTypeMask) -> EventPublisher {
+        EventPublisher { receive in
+            UniversalEventMonitor(mask: mask) { event in
+                receive(event)
                 return event
             }
-            monitor.start()
         }
+    }
+}
 
-        func request(_ demand: Subscribers.Demand) { }
+final class RunLoopLocalEventMonitor: EventMonitoring {
+    private let runLoop = CFRunLoopGetCurrent()
+    private let mode: RunLoop.Mode
+    private let observer: CFRunLoopObserver
 
-        func cancel() {
-            monitor.stop()
-            subscriber = nil
+    init(
+        mask: NSEvent.EventTypeMask,
+        mode: RunLoop.Mode,
+        handler: @MainActor @escaping (NSEvent) -> NSEvent?
+    ) {
+        self.mode = mode
+        self.observer = CFRunLoopObserverCreateWithHandler(
+            kCFAllocatorDefault,
+            CFRunLoopActivity.beforeSources.rawValue,
+            true,
+            0
+        ) { _, _ in
+            MainActor.assumeIsolated {
+                var events = [NSEvent]()
+                while let event = NSApp.nextEvent(matching: .any, until: nil, inMode: .default, dequeue: true) {
+                    events.append(event)
+                }
+                for event in events {
+                    if !mask.contains(NSEvent.EventTypeMask(rawValue: 1 << event.type.rawValue)) {
+                        NSApp.postEvent(event, atStart: false)
+                    } else if let handledEvent = handler(event) {
+                        NSApp.postEvent(handledEvent, atStart: false)
+                    }
+                }
+            }
         }
+    }
+
+    deinit {
+        stop()
+    }
+
+    func start() {
+        CFRunLoopAddObserver(runLoop, observer, CFRunLoopMode(mode.rawValue as CFString))
+    }
+
+    func stop() {
+        CFRunLoopRemoveObserver(runLoop, observer, CFRunLoopMode(mode.rawValue as CFString))
+    }
+
+    static func publisher(for mask: NSEvent.EventTypeMask, mode: RunLoop.Mode) -> EventPublisher {
+        EventPublisher { receive in
+            nonisolated(unsafe) let unsafeReceive = receive
+            return RunLoopLocalEventMonitor(mask: mask, mode: mode) { event in
+                unsafeReceive(event)
+                return event
+            }
+        }
+    }
+}
+
+struct EventPublisher: Publisher {
+    typealias Output = NSEvent
+    typealias Failure = Never
+
+    fileprivate let makeMonitor: (@escaping (NSEvent) -> Void) -> EventMonitoring
+
+    func receive<S: Subscriber<Output, Failure>>(subscriber: S) {
+        subscriber.receive(subscription: EventSubscription(subscriber: subscriber, makeMonitor: makeMonitor))
+    }
+}
+
+private final class EventSubscription<S: Subscriber<NSEvent, Never>>: Subscription {
+    private var subscriber: S?
+    private let monitor: EventMonitoring
+
+    init(subscriber: S, makeMonitor: (@escaping (NSEvent) -> Void) -> EventMonitoring) {
+        self.subscriber = subscriber
+        self.monitor = makeMonitor { event in
+            _ = subscriber.receive(event)
+        }
+        monitor.start()
+    }
+
+    func request(_ demand: Subscribers.Demand) { }
+
+    func cancel() {
+        monitor.stop()
+        subscriber = nil
     }
 }
