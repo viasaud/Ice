@@ -22,7 +22,7 @@
 			membershipExceptions = (
 				Supporting/Info.plist,
 			);
-			target = 716683292A767E6A006ABF84 /* Ice */;
+			target = 716683292A767E6A006ABF84 /* MinimalIce */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -63,9 +63,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		716683292A767E6A006ABF84 /* Ice */ = {
+		716683292A767E6A006ABF84 /* MinimalIce */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 716683392A767E6B006ABF84 /* Build configuration list for PBXNativeTarget "Ice" */;
+			buildConfigurationList = 716683392A767E6B006ABF84 /* Build configuration list for PBXNativeTarget "MinimalIce" */;
 			buildPhases = (
 				716683262A767E6A006ABF84 /* Sources */,
 				716683272A767E6A006ABF84 /* Frameworks */,
@@ -78,13 +78,13 @@
 			fileSystemSynchronizedGroups = (
 				71BDFBE12C978E2A00EF145F /* MinimalIce */,
 			);
-			name = Ice;
+			name = MinimalIce;
 			packageProductDependencies = (
 				175061902B1543DD003144CD /* LaunchAtLogin */,
 				1787C4262B16890B002F50DF /* AXSwift */,
 				17F71BB42B880B4500905CBA /* CompactSlider */,
 			);
-			productName = Ice;
+			productName = MinimalIce;
 			productReference = 7166832A2A767E6A006ABF84 /* Minimal Ice.app */;
 			productType = "com.apple.product-type.application";
 		};
@@ -103,7 +103,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 716683252A767E6A006ABF84 /* Build configuration list for PBXProject "Ice" */;
+			buildConfigurationList = 716683252A767E6A006ABF84 /* Build configuration list for PBXProject "MinimalIce" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -121,7 +121,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				716683292A767E6A006ABF84 /* Ice */,
+				716683292A767E6A006ABF84 /* MinimalIce */,
 			);
 		};
 /* End PBXProject section */
@@ -335,7 +335,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		716683252A767E6A006ABF84 /* Build configuration list for PBXProject "Ice" */ = {
+		716683252A767E6A006ABF84 /* Build configuration list for PBXProject "MinimalIce" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				716683372A767E6B006ABF84 /* Debug */,
@@ -344,7 +344,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		716683392A767E6B006ABF84 /* Build configuration list for PBXNativeTarget "Ice" */ = {
+		716683392A767E6B006ABF84 /* Build configuration list for PBXNativeTarget "MinimalIce" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				7166833A2A767E6B006ABF84 /* Debug */,

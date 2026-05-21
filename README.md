@@ -40,10 +40,11 @@ targets macOS Tahoe 26.0 at runtime.
 
 ## Build
 
-Open `Ice.xcodeproj` in Xcode and run the `Ice` scheme, or build from Terminal:
+Open `MinimalIce.xcodeproj` in Xcode and run the `MinimalIce` scheme, or build
+from Terminal:
 
 ```sh
-xcodebuild -project Ice.xcodeproj -scheme Ice -configuration Debug build
+xcodebuild -project MinimalIce.xcodeproj -scheme MinimalIce -configuration Debug build
 ```
 
 The project uses local ad hoc signing for personal builds. Minimal Ice requires
@@ -61,10 +62,28 @@ Sparkle and the old update feed are intentionally not included.
 ## Repository Shape
 
 This repository is app source plus local build context. The app source lives in
-`MinimalIce/`, grouped by `App`, `Features`, `Infrastructure`, `Shared`, and
-`Supporting` so Xcode and coding agents see the same map. The repository
-intentionally does not include public GitHub issue templates, funding metadata,
-release automation, or support flows.
+`MinimalIce/` so Xcode file-system-synchronized groups and coding agents see the
+same map.
+
+- `MinimalIce/App`: app bootstrap and app-wide state.
+- `MinimalIce/MenuBar`: menu bar sections, control items, item discovery,
+  reveal behavior, movement, clicking, and menu bar hit testing.
+- `MinimalIce/Settings`: the single-page settings window and settings state.
+- `MinimalIce/Permissions`: Accessibility permission model and permission
+  window.
+- `MinimalIce/Platform`: AppKit event monitoring, WindowServer adapters, and
+  private CoreGraphics bridging.
+- `MinimalIce/Persistence`: defaults, migrations, and status-item storage.
+- `MinimalIce/Runtime`: logging, Objective-C storage, runtime shims, and
+  extensions.
+- `MinimalIce/Shared`: small reusable helpers with no feature ownership.
+- `MinimalIce/Supporting`: assets, plist, and entitlements.
+
+The repository root intentionally stays small: `MinimalIce.xcodeproj`,
+`MinimalIce/`, `README.md`, `AGENTS.md`, `LICENSE`, and local git metadata. The
+Xcode project, scheme, built product, and user-facing app name now all carry the
+Minimal Ice name. The repository intentionally does not include public GitHub
+issue templates, funding metadata, release automation, or support flows.
 
 ## License
 

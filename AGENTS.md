@@ -5,20 +5,28 @@ This repository uses Xcode file-system-synchronized groups. The filesystem under
 
 ## Source Map
 
-- `MinimalIce/App`: app entry point, delegate, lifecycle coordination, and
-  app-wide state composition.
-- `MinimalIce/Features/MenuBar`: menu bar sections, control items, item
-  discovery, reveal behavior, and menu bar hit testing.
-- `MinimalIce/Features/Settings`: single-page settings UI plus `State/` for
-  settings persistence and behavior policy.
-- `MinimalIce/Features/Permissions`: Accessibility permission model and window.
-- `MinimalIce/Infrastructure/Events`: AppKit and CGEvent monitoring.
-- `MinimalIce/Infrastructure/Platform`: WindowServer, Accessibility, and
-  CoreGraphics bridging.
-- `MinimalIce/Infrastructure/Persistence`: defaults, migrations, and status-item
-  storage.
-- `MinimalIce/Infrastructure/Runtime`: logging, Objective-C storage, extensions,
-  and runtime shims.
+- `MinimalIce/App/Bootstrap`: SwiftUI app entry point, delegate, and lifecycle
+  coordination.
+- `MinimalIce/App/State`: app-wide state composition.
+- `MinimalIce/MenuBar`: core menu bar orchestration.
+- `MinimalIce/MenuBar/Sections`: visible, hidden, and always-hidden section
+  models plus section layout classification.
+- `MinimalIce/MenuBar/ControlItems`: Minimal Ice-owned status items used to
+  control or delimit sections.
+- `MinimalIce/MenuBar/Items`: menu bar item identity, window snapshots, image
+  caching, and item discovery.
+- `MinimalIce/MenuBar/Items/ItemManagement`: item cache refresh, CGEvent
+  routing, movement, clicking, temporary reveal, and rehide behavior.
+- `MinimalIce/MenuBar/HitTesting`: menu bar pointer hit-test results.
+- `MinimalIce/MenuBar/Reveal`: reveal policy decisions.
+- `MinimalIce/Settings`: single-page settings UI plus `State/` for settings
+  persistence and behavior policy.
+- `MinimalIce/Permissions`: Accessibility permission model and window.
+- `MinimalIce/Platform`: AppKit event monitoring, WindowServer adapters,
+  private CoreGraphics bridging, and platform shims.
+- `MinimalIce/Persistence`: defaults, migrations, and status-item storage.
+- `MinimalIce/Runtime`: logging, Objective-C storage, extensions, and runtime
+  shims.
 - `MinimalIce/Shared`: small reusable helpers with no feature ownership.
 - `MinimalIce/Supporting`: assets, plist, and entitlements.
 
@@ -28,8 +36,8 @@ This repository uses Xcode file-system-synchronized groups. The filesystem under
   feature already has a concrete caller.
 - Preserve `com.personal.Ice` unless the user explicitly asks for a bundle
   identity migration.
-- Keep the Xcode project and scheme named `Ice`; the user-facing app name is
-  `Minimal Ice`.
+- Keep the Xcode project bundle and scheme named `MinimalIce`; the user-facing
+  app name is `Minimal Ice`.
 - Keep the app lightweight, native, fast, minimal, and personal-use focused.
 - Avoid public distribution surfaces, update flows, telemetry, analytics,
   donation/support links, release infrastructure, funding metadata, and
@@ -39,7 +47,7 @@ This repository uses Xcode file-system-synchronized groups. The filesystem under
   should not require Screen & System Audio Recording permission.
 - Local builds are ad-hoc signed on this machine.
 - SwiftLint is not part of this fork's current toolchain.
-- Build with `xcodebuild -project Ice.xcodeproj -scheme Ice -configuration Debug build`.
+- Build with `xcodebuild -project MinimalIce.xcodeproj -scheme MinimalIce -configuration Debug build`.
 
 ## Domain Language
 
@@ -82,6 +90,39 @@ support flows.
   leaves the menu bar.
 - Showing all sections while command-dragging menu bar items is always enabled.
 
+## App Icon Notes
+
+- The correct app icon artwork is cube artwork on an opaque black square
+  background, with the generated rounded-square/card rim removed from the PNG
+  artwork.
+- Do not use the previous transparent-corner version or cube-only small icon
+  slots. Those made the System Settings icon look worse.
+- Do not add `MinimalIce/Supporting/AppIcon.icon` from Icon Composer for this
+  icon. Icon Composer/macOS 26 adds its own glossy rounded enclosure and made
+  the border more obvious in previews.
+- The source of truth remains
+  `MinimalIce/Supporting/Assets.xcassets/AppIcon.appiconset/`.
+- The final generation approach was:
+  - Start from the good generated image under
+    `$HOME/.codex/generated_images/.../ig_0b75acd7c94bb234016a0e0d386b0881918c986a01641fff6d.png`.
+  - Extract/preserve the cube and its glow.
+  - Explicitly remove the generated outer app-card/rim from the image.
+  - Composite the cube over an opaque black 1024x1024 background.
+  - Export all native macOS app icon slots from 16px through 1024px.
+- Verification used:
+  - `xcodebuild -project MinimalIce.xcodeproj -scheme MinimalIce -configuration Debug build`
+  - Install to `/Applications/Minimal Ice.app`.
+  - Extract `/Applications/Minimal Ice.app/Contents/Resources/AppIcon.icns`
+    with `iconutil -c iconset`.
+  - Check extracted icon edge/corner pixels are opaque black, not gray and not
+    transparent.
+  - Render `/Applications/Minimal Ice.app` via
+    `NSWorkspace.shared.icon(forFile:)` to see what System Settings/Finder-style
+    APIs receive.
+- Important finding: after the artwork rim is removed, any remaining
+  rounded/glossy border visible in System Settings is macOS 26's
+  system-rendered app icon enclosure, not a border baked into the icon assets.
+
 ## Local Workflow
 
 - Do not push to GitHub unless explicitly asked.
@@ -90,7 +131,7 @@ support flows.
 - Release builds:
 
 ```sh
-xcodebuild -project Ice.xcodeproj -scheme Ice -configuration Release build
+xcodebuild -project MinimalIce.xcodeproj -scheme MinimalIce -configuration Release build
 ```
 
 - Reinstall the Release build:
@@ -99,6 +140,7 @@ xcodebuild -project Ice.xcodeproj -scheme Ice -configuration Release build
 osascript -e 'tell application "Minimal Ice" to quit' || true
 pkill -x "Minimal Ice" || true
 rm -rf "/Applications/Minimal Ice.app"
-ditto "$HOME/Library/Developer/Xcode/DerivedData/Ice-fgzxyubmlykwgvdiswwvjjyewtrp/Build/Products/Release/Minimal Ice.app" "/Applications/Minimal Ice.app"
+release_products_dir="$(xcodebuild -project MinimalIce.xcodeproj -scheme MinimalIce -configuration Release -showBuildSettings | awk -F ' = ' '/TARGET_BUILD_DIR/ { print $2; exit }')"
+ditto "$release_products_dir/Minimal Ice.app" "/Applications/Minimal Ice.app"
 open "/Applications/Minimal Ice.app"
 ```
