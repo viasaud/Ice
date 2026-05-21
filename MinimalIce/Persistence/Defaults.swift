@@ -140,9 +140,12 @@ extension Defaults {
 
         // MARK: General Settings
 
-        case showIceIcon = "ShowIceIcon"
         case showOnClick = "ShowOnClick"
         case showOnHover = "ShowOnHover"
+
+        // MARK: Permissions
+
+        case hasAccessibilityPermission = "HasAccessibilityPermission"
 
         // MARK: Advanced Settings
 

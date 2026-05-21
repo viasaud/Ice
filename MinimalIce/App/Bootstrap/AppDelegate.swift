@@ -30,10 +30,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        // Dismiss the windows.
-        appState.dismissSettingsWindow()
-        appState.dismissPermissionsWindow()
-
         // Hide the main menu to make more space in the menu bar.
         if let mainMenu = NSApp.mainMenu {
             for item in mainMenu.items {
@@ -78,14 +74,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.appState = appState
     }
 
-    /// Opens the settings window and activates the app.
-    @objc func openSettingsWindow() {
-        guard let appState else {
-            Logger.appDelegate.error("Failed to open settings window")
-            return
-        }
-        appState.lifecycleCoordinator.openSettingsOrPermissions()
-    }
 }
 
 // MARK: - Logger

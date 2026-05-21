@@ -36,12 +36,6 @@ final class AppState: ObservableObject {
     /// The app's delegate.
     private(set) weak var appDelegate: AppDelegate?
 
-    /// The window that contains the settings interface.
-    private(set) weak var settingsWindow: NSWindow?
-
-    /// The window that contains the permissions interface.
-    private(set) weak var permissionsWindow: NSWindow?
-
     /// A Boolean value that indicates whether the "ShowOnHover" feature is prevented.
     private(set) var isShowOnHoverPrevented = false
 
@@ -49,8 +43,6 @@ final class AppState: ObservableObject {
     private var hasActivated = false
 
     @Published private var isAppFrontmost = false
-
-    @Published private var isSettingsPresented = false
 
     /// Storage for internal observers.
     private var cancellables = Set<AnyCancellable>()
@@ -117,37 +109,20 @@ final class AppState: ObservableObject {
             }
             .store(in: &c)
 
-        if let settingsWindow {
-            settingsWindow.publisher(for: \.isVisible)
-                .debounce(for: 0.05, scheduler: DispatchQueue.main)
-                .sink { [weak self] isVisible in
-                    guard let self else {
-                        return
-                    }
-                    isSettingsPresented = isVisible
+        $isAppFrontmost
+            .debounce(for: 0.1, scheduler: DispatchQueue.main)
+            .sink { [weak self] isAppFrontmost in
+                guard
+                    let self,
+                    isAppFrontmost
+                else {
+                    return
                 }
-                .store(in: &c)
-        } else {
-            Logger.appState.warning("No settings window!")
-        }
-
-        Publishers.Merge(
-            $isAppFrontmost,
-            $isSettingsPresented
-        )
-        .debounce(for: 0.1, scheduler: DispatchQueue.main)
-        .sink { [weak self] shouldUpdate in
-            guard
-                let self,
-                shouldUpdate
-            else {
-                return
+                Task {
+                    await self.imageCache.updateCacheWithoutChecks(sections: MenuBarSection.Name.allCases)
+                }
             }
-            Task {
-                await self.imageCache.updateCacheWithoutChecks(sections: MenuBarSection.Name.allCases)
-            }
-        }
-        .store(in: &c)
+            .store(in: &c)
 
         forwardObjectWillChange(from: menuBarManager.objectWillChange, storingIn: &c)
         forwardObjectWillChange(from: permissionsManager.objectWillChange, storingIn: &c)
@@ -185,46 +160,6 @@ final class AppState: ObservableObject {
             return
         }
         self.appDelegate = appDelegate
-    }
-
-    /// Assigns the settings window to the app state.
-    func assignSettingsWindow(_ window: NSWindow) {
-        guard window.identifier?.rawValue == Constants.settingsWindowID else {
-            Logger.appState.warning("Window \(window.identifier?.rawValue ?? "<NIL>") is not the settings window!")
-            return
-        }
-        settingsWindow = window
-        configureCancellables()
-    }
-
-    /// Assigns the permissions window to the app state.
-    func assignPermissionsWindow(_ window: NSWindow) {
-        guard window.identifier?.rawValue == Constants.permissionsWindowID else {
-            Logger.appState.warning("Window \(window.identifier?.rawValue ?? "<NIL>") is not the permissions window!")
-            return
-        }
-        permissionsWindow = window
-        configureCancellables()
-    }
-
-    /// Opens the settings window.
-    func openSettingsWindow() {
-        EnvironmentValues().openWindow(id: Constants.settingsWindowID)
-    }
-
-    /// Dismisses the settings window.
-    func dismissSettingsWindow() {
-        EnvironmentValues().dismissWindow(id: Constants.settingsWindowID)
-    }
-
-    /// Opens the permissions window.
-    func openPermissionsWindow() {
-        EnvironmentValues().openWindow(id: Constants.permissionsWindowID)
-    }
-
-    /// Dismisses the permissions window.
-    func dismissPermissionsWindow() {
-        EnvironmentValues().dismissWindow(id: Constants.permissionsWindowID)
     }
 
     /// Toggles the appropriate menu bar section for the current modifier flags.

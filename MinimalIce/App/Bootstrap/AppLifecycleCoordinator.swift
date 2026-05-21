@@ -10,6 +10,7 @@ import SwiftUI
 final class AppLifecycleCoordinator {
     private weak var appState: AppState?
     private var hasPerformedSetup = false
+    private var isWaitingForAccessibilityPermission = false
 
     init(appState: AppState) {
         self.appState = appState
@@ -40,40 +41,8 @@ final class AppLifecycleCoordinator {
         if appState.permissionsManager.canRunApp {
             performSetupIfNeeded()
         } else {
-            openPermissionsWindow()
+            requestAccessibilityPermissionIfNeeded()
         }
-    }
-
-    func openSettingsOrPermissions() {
-        guard let appState else {
-            return
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self, weak appState] in
-            guard
-                let self,
-                let appState
-            else {
-                return
-            }
-            appState.permissionsManager.refreshAllPermissions()
-            if appState.permissionsManager.canRunApp {
-                self.performSetupIfNeeded()
-                appState.activate(withPolicy: .regular)
-                appState.openSettingsWindow()
-            } else {
-                self.openPermissionsWindow()
-            }
-        }
-    }
-
-    func continueAfterPermissions() {
-        guard let appState else {
-            return
-        }
-        performSetupIfNeeded()
-        appState.permissionsWindow?.close()
-        openSettingsOrPermissions()
     }
 
     private func performSetupIfNeeded() {
@@ -87,12 +56,21 @@ final class AppLifecycleCoordinator {
         appState.performSetup()
     }
 
-    private func openPermissionsWindow() {
+    private func requestAccessibilityPermissionIfNeeded() {
         guard let appState else {
             return
         }
-        appState.activate(withPolicy: .regular)
-        appState.dismissSettingsWindow()
-        appState.openPermissionsWindow()
+        guard !isWaitingForAccessibilityPermission else {
+            return
+        }
+        isWaitingForAccessibilityPermission = true
+        Task { [weak self] in
+            guard let self else {
+                return
+            }
+            await appState.permissionsManager.requestAccessibilityPermissionAndWait()
+            isWaitingForAccessibilityPermission = false
+            performSetupIfNeeded()
+        }
     }
 }

@@ -3,7 +3,7 @@
 //  Ice
 //
 
-import AXSwift
+import ApplicationServices
 import Combine
 import Cocoa
 
@@ -134,11 +134,20 @@ final class AccessibilityPermission: Permission {
             isRequired: true,
             settingsURL: nil,
             check: {
-                checkIsProcessTrusted()
+                Self.checkAndStoreTrust()
             },
             request: {
-                checkIsProcessTrusted(prompt: true)
+                _ = Self.checkAndStoreTrust(prompt: true)
             }
         )
+    }
+
+    private static func checkAndStoreTrust(prompt: Bool = false) -> Bool {
+        let options = [
+            "AXTrustedCheckOptionPrompt": prompt,
+        ] as CFDictionary
+        let isTrusted = AXIsProcessTrustedWithOptions(options)
+        Defaults.set(isTrusted, forKey: .hasAccessibilityPermission)
+        return isTrusted
     }
 }

@@ -5,14 +5,12 @@
 
 @preconcurrency import AXSwift
 import Combine
+import LaunchAtLogin
 import SwiftUI
 
 /// Manager for the state of the menu bar.
 @MainActor
 final class MenuBarManager: ObservableObject {
-    /// Information for the menu bar's average color.
-    @Published private(set) var averageColorInfo: MenuBarAverageColorInfo?
-
     /// A Boolean value that indicates whether the menu bar is either always hidden
     /// by the system, or automatically hidden and shown by the system based on the
     /// location of the mouse.
@@ -30,12 +28,6 @@ final class MenuBarManager: ObservableObject {
 
     /// The managed sections in the menu bar.
     private(set) var sections = [MenuBarSection]()
-
-    /// A Boolean value that indicates whether the manager can update its stored
-    /// information for the menu bar's average color.
-    private var canUpdateAverageColorInfo: Bool {
-        appState?.settingsWindow?.isVisible == true
-    }
 
     /// Initializes a new menu bar manager instance.
     init(appState: AppState) {
@@ -104,35 +96,7 @@ final class MenuBarManager: ObservableObject {
                 .store(in: &c)
         }
 
-        appState?.settingsWindow?.publisher(for: \.isVisible)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.updateAverageColorInfo()
-            }
-            .store(in: &c)
-
-        Timer.publish(every: 5, on: .main, in: .default)
-            .autoconnect()
-            .sink { [weak self] _ in
-                self?.updateAverageColorInfo()
-            }
-            .store(in: &c)
-
         cancellables = c
-    }
-
-    /// Updates the ``averageColorInfo`` property with a permission-free native
-    /// fallback color.
-    func updateAverageColorInfo() {
-        guard canUpdateAverageColorInfo else {
-            return
-        }
-
-        let info = MenuBarAverageColorInfo(color: NSColor.windowBackgroundColor.cgColor, source: .fallback)
-
-        if averageColorInfo != info {
-            averageColorInfo = info
-        }
     }
 
     /// Returns a Boolean value that indicates whether the given display
@@ -191,16 +155,162 @@ final class MenuBarManager: ObservableObject {
 
     /// Shows the right-click menu.
     func showRightClickMenu(at point: CGPoint) {
+        let menu = createMenu()
+        menu.popUp(positioning: nil, at: point, in: nil)
+    }
+
+    private func createMenu() -> NSMenu {
         let menu = NSMenu(title: "Minimal Ice")
 
-        let settingsItem = NSMenuItem(
-            title: "Minimal Ice Settings…",
-            action: #selector(AppDelegate.openSettingsWindow),
-            keyEquivalent: ","
+        let revealModeItem = NSMenuItem(
+            title: "Reveal By",
+            action: nil,
+            keyEquivalent: ""
         )
-        menu.addItem(settingsItem)
+        revealModeItem.image = MenuItemIcon.reveal
+        revealModeItem.submenu = createRevealModeMenu()
+        menu.addItem(revealModeItem)
 
-        menu.popUp(positioning: nil, at: point, in: nil)
+        let sectionDividersItem = NSMenuItem(
+            title: "Show Dividers",
+            action: #selector(toggleSectionDividers),
+            keyEquivalent: ""
+        )
+        sectionDividersItem.image = MenuItemIcon.dividers
+        sectionDividersItem.target = self
+        sectionDividersItem.state = appState?.settingsManager.advancedSettingsManager.showSectionDividers == true ? .on : .off
+        menu.addItem(sectionDividersItem)
+
+        let alwaysHiddenSectionItem = NSMenuItem(
+            title: "Always-Hidden Section",
+            action: #selector(toggleAlwaysHiddenSection),
+            keyEquivalent: ""
+        )
+        alwaysHiddenSectionItem.image = MenuItemIcon.alwaysHidden
+        alwaysHiddenSectionItem.target = self
+        alwaysHiddenSectionItem.state = appState?.settingsManager.advancedSettingsManager.enableAlwaysHiddenSection == true ? .on : .off
+        menu.addItem(alwaysHiddenSectionItem)
+
+        let rehideIntervalItem = NSMenuItem(
+            title: "Hide After",
+            action: nil,
+            keyEquivalent: ""
+        )
+        rehideIntervalItem.image = MenuItemIcon.hideAfter
+        rehideIntervalItem.submenu = createRehideIntervalMenu()
+        rehideIntervalItem.isEnabled = appState?.settingsManager.hiddenItemsActivationMode == .click
+        menu.addItem(rehideIntervalItem)
+
+        menu.addItem(.separator())
+
+        let launchAtLoginItem = NSMenuItem(
+            title: "Launch at Startup",
+            action: #selector(toggleLaunchAtLogin),
+            keyEquivalent: ""
+        )
+        launchAtLoginItem.image = MenuItemIcon.launchAtStartup
+        launchAtLoginItem.target = self
+        launchAtLoginItem.state = LaunchAtLogin.isEnabled ? .on : .off
+        menu.addItem(launchAtLoginItem)
+
+        menu.addItem(.separator())
+
+        let versionItem = NSMenuItem(
+            title: "Minimal Ice \(Constants.versionString)",
+            action: nil,
+            keyEquivalent: ""
+        )
+        versionItem.image = MenuItemIcon.version
+        versionItem.isEnabled = false
+        menu.addItem(versionItem)
+
+        let quitItem = NSMenuItem(
+            title: "Quit",
+            action: #selector(NSApp.terminate),
+            keyEquivalent: ""
+        )
+        quitItem.image = MenuItemIcon.quit
+        menu.addItem(quitItem)
+
+        return menu
+    }
+
+    private func createRevealModeMenu() -> NSMenu {
+        let menu = NSMenu(title: "Reveal By")
+        let selectedMode = appState?.settingsManager.hiddenItemsActivationMode
+
+        for mode in HiddenItemsActivationMode.allCases {
+            let item = NSMenuItem(
+                title: mode.menuTitle,
+                action: #selector(selectRevealMode),
+                keyEquivalent: ""
+            )
+            item.image = mode.menuIcon
+            item.target = self
+            item.representedObject = mode.rawValue
+            item.state = mode == selectedMode ? .on : .off
+            menu.addItem(item)
+        }
+
+        return menu
+    }
+
+    private func createRehideIntervalMenu() -> NSMenu {
+        let menu = NSMenu(title: "Hide After")
+        let selectedInterval = appState?.settingsManager.advancedSettingsManager.tempShowInterval
+
+        for interval in Self.rehideIntervals {
+            let item = NSMenuItem(
+                title: interval.rehideIntervalTitle,
+                action: #selector(selectRehideInterval),
+                keyEquivalent: ""
+            )
+            item.image = MenuItemIcon.interval
+            item.target = self
+            item.representedObject = interval
+            item.state = interval == selectedInterval ? .on : .off
+            menu.addItem(item)
+        }
+
+        return menu
+    }
+
+    @objc private func selectRevealMode(_ menuItem: NSMenuItem) {
+        guard
+            let rawValue = menuItem.representedObject as? String,
+            let mode = HiddenItemsActivationMode(rawValue: rawValue)
+        else {
+            return
+        }
+        appState?.settingsManager.hiddenItemsActivationMode = mode
+    }
+
+    @objc private func toggleSectionDividers(_ menuItem: NSMenuItem) {
+        guard let manager = appState?.settingsManager.advancedSettingsManager else {
+            return
+        }
+        manager.showSectionDividers.toggle()
+        menuItem.state = manager.showSectionDividers ? .on : .off
+    }
+
+    @objc private func toggleAlwaysHiddenSection(_ menuItem: NSMenuItem) {
+        guard let manager = appState?.settingsManager.advancedSettingsManager else {
+            return
+        }
+        manager.enableAlwaysHiddenSection.toggle()
+        menuItem.state = manager.enableAlwaysHiddenSection ? .on : .off
+    }
+
+    @objc private func selectRehideInterval(_ menuItem: NSMenuItem) {
+        guard let interval = menuItem.representedObject as? TimeInterval else {
+            return
+        }
+        appState?.settingsManager.advancedSettingsManager.tempShowInterval = interval
+    }
+
+    @objc private func toggleLaunchAtLogin(_ menuItem: NSMenuItem) {
+        LaunchAtLogin.isEnabled.toggle()
+        menuItem.state = LaunchAtLogin.isEnabled ? .on : .off
     }
 
     /// Returns the menu bar section with the given name.
@@ -212,18 +322,34 @@ final class MenuBarManager: ObservableObject {
 // MARK: MenuBarManager: BindingExposable
 extension MenuBarManager: BindingExposable { }
 
-// MARK: - MenuBarAverageColorInfo
+private extension MenuBarManager {
+    static let rehideIntervals: [TimeInterval] = [0, 5, 10, 15, 20, 30]
+}
 
-/// Information for the menu bar's average color.
-struct MenuBarAverageColorInfo: Hashable {
-    enum Source: Hashable {
-        case menuBarWindow
-        case desktopWallpaper
-        case fallback
+private extension HiddenItemsActivationMode {
+    var menuTitle: String {
+        switch self {
+        case .click:
+            "On Click"
+        case .hover:
+            "On Hover"
+        }
     }
 
-    var color: CGColor
-    var source: Source
+    var menuIcon: NSImage? {
+        switch self {
+        case .click:
+            MenuItemIcon.click
+        case .hover:
+            MenuItemIcon.hover
+        }
+    }
+}
+
+private extension TimeInterval {
+    var rehideIntervalTitle: String {
+        self == 0 ? "Immediately" : "\(Int(self)) Seconds"
+    }
 }
 
 // MARK: - Logger

@@ -5,6 +5,7 @@
 
 import Cocoa
 import Combine
+import LaunchAtLogin
 
 /// A status item that controls a section in the menu bar.
 @MainActor
@@ -174,23 +175,6 @@ final class ControlItem {
             .store(in: &c)
 
         if let appState {
-            appState.settingsManager.generalSettingsManager.$showIceIcon
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] showIceIcon in
-                    guard
-                        let self,
-                        !isSectionDivider
-                    else {
-                        return
-                    }
-                    if showIceIcon {
-                        addToMenuBar()
-                    } else {
-                        removeFromMenuBar()
-                    }
-                }
-                .store(in: &c)
-
             appState.settingsManager.advancedSettingsManager.$showSectionDividers
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self] shouldShow in
@@ -329,69 +313,170 @@ final class ControlItem {
             let modifierFlags = event.modifierFlags
 
             if modifierFlags.contains(.control) {
-                statusItem.showMenu(createMenu(with: appState))
+                statusItem.showMenu(createMenu())
             } else {
                 appState.toggleMenuBarSection(using: modifierFlags, preferredSection: section)
             }
         case .rightMouseUp:
-            statusItem.showMenu(createMenu(with: appState))
+            statusItem.showMenu(createMenu())
         default:
             break
         }
     }
 
     /// Creates a menu to show under the control item.
-    private func createMenu(with appState: AppState) -> NSMenu {
+    private func createMenu() -> NSMenu {
         let menu = NSMenu(title: "Minimal Ice")
 
-        let settingsItem = NSMenuItem(
-            title: "Minimal Ice Settings…",
-            action: #selector(AppDelegate.openSettingsWindow),
-            keyEquivalent: ","
+        let revealModeItem = NSMenuItem(
+            title: "Reveal By",
+            action: nil,
+            keyEquivalent: ""
         )
-        settingsItem.keyEquivalentModifierMask = .command
-        menu.addItem(settingsItem)
+        revealModeItem.image = MenuItemIcon.reveal
+        revealModeItem.submenu = createRevealModeMenu()
+        menu.addItem(revealModeItem)
+
+        let sectionDividersItem = NSMenuItem(
+            title: "Show Dividers",
+            action: #selector(toggleSectionDividers),
+            keyEquivalent: ""
+        )
+        sectionDividersItem.image = MenuItemIcon.dividers
+        sectionDividersItem.target = self
+        sectionDividersItem.state = appState?.settingsManager.advancedSettingsManager.showSectionDividers == true ? .on : .off
+        menu.addItem(sectionDividersItem)
+
+        let alwaysHiddenSectionItem = NSMenuItem(
+            title: "Always-Hidden Section",
+            action: #selector(toggleAlwaysHiddenSection),
+            keyEquivalent: ""
+        )
+        alwaysHiddenSectionItem.image = MenuItemIcon.alwaysHidden
+        alwaysHiddenSectionItem.target = self
+        alwaysHiddenSectionItem.state = appState?.settingsManager.advancedSettingsManager.enableAlwaysHiddenSection == true ? .on : .off
+        menu.addItem(alwaysHiddenSectionItem)
+
+        let rehideIntervalItem = NSMenuItem(
+            title: "Hide After",
+            action: nil,
+            keyEquivalent: ""
+        )
+        rehideIntervalItem.image = MenuItemIcon.hideAfter
+        rehideIntervalItem.submenu = createRehideIntervalMenu()
+        rehideIntervalItem.isEnabled = appState?.settingsManager.hiddenItemsActivationMode == .click
+        menu.addItem(rehideIntervalItem)
 
         menu.addItem(.separator())
 
-        // Add menu items to toggle the hidden and always-hidden sections.
-        for name in appState.revealableSectionNamesForControlMenu() {
-            guard
-                let section = appState.menuBarManager.section(withName: name),
-                section.controlItem.isAddedToMenuBar
-            else {
-                // Section doesn't exist, or is disabled.
-                continue
-            }
-            let item = NSMenuItem(
-                title: "\(section.isHidden ? "Show" : "Hide") the \(name.displayString) Section",
-                action: #selector(toggleMenuBarSection),
-                keyEquivalent: ""
-            )
-            item.target = self
-            Self.sectionStorage.weakSet(section, for: item)
-            menu.addItem(item)
-        }
+        let launchAtLoginItem = NSMenuItem(
+            title: "Launch at Startup",
+            action: #selector(toggleLaunchAtLogin),
+            keyEquivalent: ""
+        )
+        launchAtLoginItem.image = MenuItemIcon.launchAtStartup
+        launchAtLoginItem.target = self
+        launchAtLoginItem.state = LaunchAtLogin.isEnabled ? .on : .off
+        menu.addItem(launchAtLoginItem)
 
         menu.addItem(.separator())
+
+        let versionItem = NSMenuItem(
+            title: "Minimal Ice \(Constants.versionString)",
+            action: nil,
+            keyEquivalent: ""
+        )
+        versionItem.image = MenuItemIcon.version
+        versionItem.isEnabled = false
+        menu.addItem(versionItem)
 
         let quitItem = NSMenuItem(
-            title: "Quit Minimal Ice",
+            title: "Quit",
             action: #selector(NSApp.terminate),
-            keyEquivalent: "q"
+            keyEquivalent: ""
         )
-        quitItem.keyEquivalentModifierMask = .command
+        quitItem.image = MenuItemIcon.quit
         menu.addItem(quitItem)
 
         return menu
     }
 
-    /// Toggles the menu bar section associated with the given menu item.
-    @objc private func toggleMenuBarSection(for menuItem: NSMenuItem) {
-        guard let appState else {
+    private func createRehideIntervalMenu() -> NSMenu {
+        let menu = NSMenu(title: "Hide After")
+        let selectedInterval = appState?.settingsManager.advancedSettingsManager.tempShowInterval
+
+        for interval in Self.rehideIntervals {
+            let item = NSMenuItem(
+                title: interval.rehideIntervalTitle,
+                action: #selector(selectRehideInterval),
+                keyEquivalent: ""
+            )
+            item.image = MenuItemIcon.interval
+            item.target = self
+            item.representedObject = interval
+            item.state = interval == selectedInterval ? .on : .off
+            menu.addItem(item)
+        }
+
+        return menu
+    }
+
+    private func createRevealModeMenu() -> NSMenu {
+        let menu = NSMenu(title: "Reveal By")
+        let selectedMode = appState?.settingsManager.hiddenItemsActivationMode
+
+        for mode in HiddenItemsActivationMode.allCases {
+            let item = NSMenuItem(
+                title: mode.menuTitle,
+                action: #selector(selectRevealMode),
+                keyEquivalent: ""
+            )
+            item.image = mode.menuIcon
+            item.target = self
+            item.representedObject = mode.rawValue
+            item.state = mode == selectedMode ? .on : .off
+            menu.addItem(item)
+        }
+
+        return menu
+    }
+
+    @objc private func selectRevealMode(_ menuItem: NSMenuItem) {
+        guard
+            let rawValue = menuItem.representedObject as? String,
+            let mode = HiddenItemsActivationMode(rawValue: rawValue)
+        else {
             return
         }
-        appState.toggleMenuBarSection(using: [], preferredSection: Self.sectionStorage.value(for: menuItem))
+        appState?.settingsManager.hiddenItemsActivationMode = mode
+    }
+
+    @objc private func toggleSectionDividers(_ menuItem: NSMenuItem) {
+        guard let manager = appState?.settingsManager.advancedSettingsManager else {
+            return
+        }
+        manager.showSectionDividers.toggle()
+        menuItem.state = manager.showSectionDividers ? .on : .off
+    }
+
+    @objc private func toggleAlwaysHiddenSection(_ menuItem: NSMenuItem) {
+        guard let manager = appState?.settingsManager.advancedSettingsManager else {
+            return
+        }
+        manager.enableAlwaysHiddenSection.toggle()
+        menuItem.state = manager.enableAlwaysHiddenSection ? .on : .off
+    }
+
+    @objc private func selectRehideInterval(_ menuItem: NSMenuItem) {
+        guard let interval = menuItem.representedObject as? TimeInterval else {
+            return
+        }
+        appState?.settingsManager.advancedSettingsManager.tempShowInterval = interval
+    }
+
+    @objc private func toggleLaunchAtLogin(_ menuItem: NSMenuItem) {
+        LaunchAtLogin.isEnabled.toggle()
+        menuItem.state = LaunchAtLogin.isEnabled ? .on : .off
     }
 
     /// Adds the control item to the menu bar.
@@ -418,15 +503,37 @@ final class ControlItem {
 }
 
 private extension ControlItem {
-    /// Storage for menu items that toggle a menu bar section.
-    ///
-    /// When one of these menu items is created, its section is stored here.
-    /// When its action is invoked, the section is retrieved from storage.
-    static let sectionStorage = ObjectStorage<MenuBarSection>()
+    static let rehideIntervals: [TimeInterval] = [0, 5, 10, 15, 20, 30]
 }
 
 // MARK: - Logger
 private extension Logger {
     /// The logger to use for control items.
     static let controlItem = Logger(category: "ControlItem")
+}
+
+private extension HiddenItemsActivationMode {
+    var menuTitle: String {
+        switch self {
+        case .click:
+            "On Click"
+        case .hover:
+            "On Hover"
+        }
+    }
+
+    var menuIcon: NSImage? {
+        switch self {
+        case .click:
+            MenuItemIcon.click
+        case .hover:
+            MenuItemIcon.hover
+        }
+    }
+}
+
+private extension TimeInterval {
+    var rehideIntervalTitle: String {
+        self == 0 ? "Immediately" : "\(Int(self)) Seconds"
+    }
 }

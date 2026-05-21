@@ -8,10 +8,6 @@ import Foundation
 
 @MainActor
 final class GeneralSettingsManager: ObservableObject {
-    /// A Boolean value that indicates whether the Ice icon
-    /// should be shown.
-    @Published var showIceIcon = true
-
     /// A Boolean value that indicates whether the hidden section
     /// should be shown when the mouse pointer clicks in an empty
     /// area of the menu bar.
@@ -38,20 +34,12 @@ final class GeneralSettingsManager: ObservableObject {
     }
 
     private func loadInitialState() {
-        Defaults.ifPresent(key: .showIceIcon, assign: &showIceIcon)
         Defaults.ifPresent(key: .showOnClick, assign: &showOnClick)
         Defaults.ifPresent(key: .showOnHover, assign: &showOnHover)
     }
 
     private func configureCancellables() {
         var c = Set<AnyCancellable>()
-
-        $showIceIcon
-            .receive(on: DispatchQueue.main)
-            .sink { showIceIcon in
-                Defaults.set(showIceIcon, forKey: .showIceIcon)
-            }
-            .store(in: &c)
 
         $showOnClick
             .receive(on: DispatchQueue.main)

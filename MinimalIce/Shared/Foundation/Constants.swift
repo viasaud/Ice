@@ -12,17 +12,6 @@ enum Constants {
     /// The bundle identifier of the app.
     static let bundleIdentifier = Bundle.main.requiredBundleIdentifier
 
-    /// The identifier for the settings window.
-    static let settingsWindowID = "SettingsWindow"
-
-    /// The identifier for the permissions window.
-    static let permissionsWindowID = "PermissionsWindow"
-
-    /// The title for the settings window.
-    static let settingsWindowTitle = "Minimal Ice"
-
-    /// The title for the permissions window.
-    static let permissionsWindowTitle = "Permissions"
 }
 
 private extension Bundle {
