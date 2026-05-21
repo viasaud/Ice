@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="MinimalIce/Supporting/Assets.xcassets/AppIcon.appiconset/icon_512x512@2x.png" width="132" alt="Minimal Ice app icon">
+  <img src="READMEAssets/app-icon.png" width="132" alt="Minimal Ice app icon">
 </p>
 
 <h1 align="center">Minimal Ice</h1>
