@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="READMEAssets/app-icon.png" width="132" alt="Minimal Ice app icon">
+  <img src="MinimalIce/Supporting/app-icon.png" width="132" alt="Minimal Ice app icon">
 </p>
 
 <h1 align="center">Minimal Ice</h1>
@@ -40,6 +40,17 @@ home, show ads, or require a network connection for normal use.
 Minimal Ice requires **Accessibility** permission because managing menu bar items
 uses macOS accessibility APIs. Normal use should not require Screen & System
 Audio Recording permission.
+
+## Download
+
+Minimal Ice is ad-hoc signed for local use. If macOS blocks the first launch,
+right-click **Minimal Ice.app** and choose **Open**.
+
+## Local Release Build
+
+```sh
+xcodebuild -project MinimalIce.xcodeproj -scheme MinimalIce -configuration Release build
+```
 
 ## License
 

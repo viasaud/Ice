@@ -20,6 +20,7 @@ xcuserdata/
 .build/
 
 # App artifacts
+dist/
 *.app
 *.dSYM/
 *.xcarchive

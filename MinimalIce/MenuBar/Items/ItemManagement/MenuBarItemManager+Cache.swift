@@ -85,14 +85,17 @@ extension MenuBarItemManager {
 
         var cache = ItemCache()
         var tempShownItems = [(MenuBarItem, MoveDestination)]()
+        let tempShownReturnDestinations = tempShownItemContexts.reduce(into: [:]) { result, context in
+            result[context.info] = context.returnDestination
+        }
 
         for item in otherItems {
-            if let context = tempShownItemContexts.first(where: { $0.info == item.info }) {
+            if let returnDestination = tempShownReturnDestinations[item.info] {
                 // Keep track of temporarily shown items and their return destinations separately.
                 // We want to cache them as if they were in their original locations. Once all other
                 // items are cached, use the return destinations to insert the items into the cache
                 // at the correct position.
-                tempShownItems.append((item, context.returnDestination))
+                tempShownItems.append((item, returnDestination))
             } else if let sectionName = sectionName(
                 for: item.frame,
                 hiddenControlItemFrame: hiddenControlItem.frame,

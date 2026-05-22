@@ -37,14 +37,12 @@ struct MenuBarItem {
 
     /// A Boolean value that indicates whether the item can be moved.
     var isMovable: Bool {
-        let immovableItems = Set(MenuBarItemInfo.immovableItems)
-        return !immovableItems.contains(info)
+        !Self.immovableItems.contains(info)
     }
 
     /// A Boolean value that indicates whether the item can be hidden.
     var canBeHidden: Bool {
-        let nonHideableItems = Set(MenuBarItemInfo.nonHideableItems)
-        return !nonHideableItems.contains(info)
+        !Self.nonHideableItems.contains(info)
     }
 
     /// The process identifier of the application that owns the item.
@@ -158,6 +156,11 @@ struct MenuBarItem {
         }
         self.init(itemWindow: window)
     }
+}
+
+private extension MenuBarItem {
+    static let immovableItems = Set(MenuBarItemInfo.immovableItems)
+    static let nonHideableItems = Set(MenuBarItemInfo.nonHideableItems)
 }
 
 // MARK: MenuBarItem Getters

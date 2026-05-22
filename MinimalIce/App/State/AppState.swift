@@ -4,6 +4,7 @@
 //
 
 import Combine
+import Sparkle
 import SwiftUI
 
 /// The model for app-wide state.
@@ -27,16 +28,18 @@ final class AppState: ObservableObject {
     /// Manager for the app's settings.
     private(set) lazy var settingsManager = SettingsManager(appState: self)
 
-    /// Global cache for menu bar item images.
-    private(set) lazy var imageCache = MenuBarItemImageCache(appState: self)
+    /// Controller for Sparkle update checks.
+    private(set) lazy var updaterController = SPUStandardUpdaterController(
+        startingUpdater: true,
+        updaterDelegate: nil,
+        userDriverDelegate: nil
+    )
 
     /// A Boolean value that indicates whether the "ShowOnHover" feature is prevented.
     private(set) var isShowOnHoverPrevented = false
 
     /// A Boolean value that indicates whether the app has activated before.
     private var hasActivated = false
-
-    @Published private var isAppFrontmost = false
 
     /// Storage for internal observers.
     private var cancellables = Set<AnyCancellable>()
@@ -93,31 +96,6 @@ final class AppState: ObservableObject {
         }
         .store(in: &c)
 
-        NSWorkspace.shared.publisher(for: \.frontmostApplication)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] frontmostApplication in
-                guard let self else {
-                    return
-                }
-                isAppFrontmost = frontmostApplication == .current
-            }
-            .store(in: &c)
-
-        $isAppFrontmost
-            .debounce(for: 0.1, scheduler: DispatchQueue.main)
-            .sink { [weak self] isAppFrontmost in
-                guard
-                    let self,
-                    isAppFrontmost
-                else {
-                    return
-                }
-                Task {
-                    await self.imageCache.updateCacheWithoutChecks(sections: MenuBarSection.Name.allCases)
-                }
-            }
-            .store(in: &c)
-
         forwardObjectWillChange(from: menuBarManager.objectWillChange, storingIn: &c)
         forwardObjectWillChange(from: permissionsManager.objectWillChange, storingIn: &c)
         forwardObjectWillChange(from: settingsManager.objectWillChange, storingIn: &c)
@@ -143,8 +121,8 @@ final class AppState: ObservableObject {
         menuBarManager.performSetup()
         eventManager.performSetup()
         settingsManager.performSetup()
+        _ = updaterController
         itemManager.performSetup()
-        imageCache.performSetup()
     }
 
     /// Toggles the appropriate menu bar section for the current modifier flags.
