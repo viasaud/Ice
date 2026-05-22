@@ -57,6 +57,10 @@ This repository uses Xcode file-system-synchronized groups. The filesystem under
   month changes, reset the commit number to `0`, for example `26.6.0`.
   Keep `MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`, and `appcast.xml`
   aligned before committing release-affecting changes.
+- Before every push, verify whether the pushed commits require a version bump
+  and appcast/release update. If they do, update `MARKETING_VERSION`,
+  `CURRENT_PROJECT_VERSION`, `appcast.xml`, the matching GitHub Release, and the
+  release zip asset before calling the push complete.
 - For every pushed commit that updates `appcast.xml`, also create or update the
   matching GitHub Release and upload the exact zip referenced by the appcast
   enclosure. Verify both the appcast URL and the release asset URL return
