@@ -187,10 +187,13 @@ extension Bridging {
         } else {
             getWindowList()
         }
-        return if option.contains(.activeSpace) {
-            list.filter(isWindowOnActiveSpace)
-        } else {
-            list
+        guard option.contains(.activeSpace) else {
+            return list
+        }
+
+        let activeSpaceID = activeSpaceID
+        return list.filter { windowID in
+            getSpaceList(for: windowID, option: .allSpaces).contains(activeSpaceID)
         }
     }
 }

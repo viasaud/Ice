@@ -7,27 +7,50 @@ import CoreGraphics
 
 /// Adapter for private WindowServer and connection behavior.
 enum WindowServerAdapter {
-    static var activeSpaceID: CGSSpaceID {
+    private static let cursorBackgroundConnectionKey = "SetsCursorInBackground"
+
+    private static var activeSpaceID: CGSSpaceID {
         Bridging.activeSpaceID
     }
 
-    static func isSpaceFullscreen(_ spaceID: CGSSpaceID) -> Bool {
-        Bridging.isSpaceFullscreen(spaceID)
+    static var isActiveSpaceFullscreen: Bool {
+        Bridging.isSpaceFullscreen(activeSpaceID)
     }
 
-    static func windowFrame(for windowID: CGWindowID) -> CGRect? {
+    static var menuBarItemWindowIDs: [CGWindowID] {
+        Bridging.getWindowList(option: .menuBarItems)
+    }
+
+    static var activeSpaceMenuBarItemWindowIDs: [CGWindowID] {
+        Bridging.getWindowList(option: [.menuBarItems, .activeSpace])
+    }
+
+    static var canSetCursorInBackground: Bool {
+        get { Bridging.getConnectionProperty(forKey: cursorBackgroundConnectionKey) as? Bool ?? false }
+        set { Bridging.setConnectionProperty(newValue, forKey: cursorBackgroundConnectionKey) }
+    }
+
+    static func menuBarItemFrame(for windowID: CGWindowID) -> CGRect? {
         Bridging.getWindowFrame(for: windowID)
     }
 
-    static func windowList(option: Bridging.WindowListOption = []) -> [CGWindowID] {
-        Bridging.getWindowList(option: option)
-    }
+    static func menuBarItemWindows(
+        on display: CGDirectDisplayID? = nil,
+        onScreenOnly: Bool,
+        activeSpaceOnly: Bool
+    ) -> [WindowInfo] {
+        var option: Bridging.WindowListOption = [.menuBarItems]
 
-    static func connectionProperty(forKey key: String) -> Any? {
-        Bridging.getConnectionProperty(forKey: key)
-    }
+        if onScreenOnly {
+            option.insert(.onScreen)
+        }
+        if activeSpaceOnly {
+            option.insert(.activeSpace)
+        }
 
-    static func setConnectionProperty(_ value: Any?, forKey key: String) {
-        Bridging.setConnectionProperty(value, forKey: key)
+        let displayBounds = display.map(CGDisplayBounds)
+        return WindowInfo.windows(withIDs: Bridging.getWindowList(option: option)).filter { window in
+            displayBounds?.intersects(window.frame) ?? true
+        }
     }
 }

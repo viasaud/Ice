@@ -17,7 +17,7 @@ final class ControlItem {
     }
 
     /// Possible hiding states for control items.
-    enum HidingState {
+    enum HidingState: Equatable {
         case hideItems, showItems
     }
 
@@ -84,45 +84,46 @@ final class ControlItem {
     /// Creates a control item with the given identifier and app state.
     init(identifier: Identifier, appState: AppState) {
         let autosaveName = identifier.rawValue
+        Self.setDefaultPositionIfNeeded(for: identifier, autosaveName: autosaveName)
 
-        // If the status item doesn't have a preferred position, set it
-        // according to the identifier.
-        if StatusItemDefaults[.preferredPosition, autosaveName] == nil {
-            switch identifier {
-            case .iceIcon:
-                StatusItemDefaults[.preferredPosition, autosaveName] = 0
-            case .hidden:
-                StatusItemDefaults[.preferredPosition, autosaveName] = 1
-            case .alwaysHidden:
-                break
-            }
-        }
-
-        self.statusItem = NSStatusBar.system.statusItem(withLength: 0)
-        self.statusItem.autosaveName = autosaveName
+        let statusItem = NSStatusBar.system.statusItem(withLength: 0)
+        statusItem.autosaveName = autosaveName
+        self.statusItem = statusItem
         self.identifier = identifier
         self.appState = appState
-
-        // This could break in a new macOS release, but we need this constraint in order to be
-        // able to hide the control item when the `ShowSectionDividers` setting is disabled. A
-        // previous implementation used the status item's `isVisible` property, which was more
-        // robust, but would completely remove the control item. With the current set of
-        // features, we need to be able to accurately retrieve the items for each section, so
-        // we need the control item to always be present to act as a delimiter. The new solution
-        // is to remove the constraint that prevents status items from having a length of zero,
-        // then resize the content view. FIXME: Find a replacement for this.
-        if
-            let button = statusItem.button,
-            let constraints = button.window?.contentView?.constraintsAffectingLayout(for: .horizontal),
-            let constraint = constraints.first(where: Predicates.controlItemConstraint(button: button))
-        {
-            assert(constraints.filter(Predicates.controlItemConstraint(button: button)).count == 1)
-            self.constraint = constraint
-        } else {
-            self.constraint = nil
-        }
+        self.constraint = Self.zeroLengthConstraint(for: statusItem.button)
 
         configureStatusItem()
+    }
+
+    private static func setDefaultPositionIfNeeded(for identifier: Identifier, autosaveName: String) {
+        guard Defaults.statusItemPreferredPosition(for: autosaveName) == nil else {
+            return
+        }
+
+        switch identifier {
+        case .iceIcon:
+            Defaults.setStatusItemPreferredPosition(0, for: autosaveName)
+        case .hidden:
+            Defaults.setStatusItemPreferredPosition(1, for: autosaveName)
+        case .alwaysHidden:
+            break
+        }
+    }
+
+    private static func zeroLengthConstraint(for button: NSStatusBarButton?) -> NSLayoutConstraint? {
+        // Keep this AppKit workaround isolated: section dividers need zero length
+        // while remaining in the menu bar as item delimiters.
+        if
+            let button,
+            let constraints = button.window?.contentView?.constraintsAffectingLayout(for: .horizontal),
+            let constraint = constraints.first(where: { $0.secondItem === button.superview })
+        {
+            assert(constraints.filter { $0.secondItem === button.superview }.count == 1)
+            return constraint
+        } else {
+            return nil
+        }
     }
 
     /// Removes the status item without clearing its stored position.
@@ -131,9 +132,9 @@ final class ControlItem {
             // Removing the status item has the unwanted side effect of deleting
             // the preferredPosition. Cache and restore it.
             let autosaveName = statusItem.autosaveName as String
-            let cached = StatusItemDefaults[.preferredPosition, autosaveName]
+            let cached = Defaults.statusItemPreferredPosition(for: autosaveName)
             NSStatusBar.system.removeStatusItem(statusItem)
-            StatusItemDefaults[.preferredPosition, autosaveName] = cached
+            Defaults.setStatusItemPreferredPosition(cached, for: autosaveName)
         }
     }
 
@@ -156,11 +157,12 @@ final class ControlItem {
         constraint?.publisher(for: \.isActive)
             .removeDuplicates()
             .sink { [weak self] isActive in
-                self?.isVisible = isActive
+                self?.setVisible(isActive)
             }
             .store(in: &c)
 
         window?.publisher(for: \.frame)
+            .removeDuplicates()
             .sink { [weak self] frame in
                 guard
                     let self,
@@ -169,7 +171,7 @@ final class ControlItem {
                 else {
                     return
                 }
-                windowFrame = frame
+                setWindowFrame(frame)
             }
             .store(in: &c)
 
@@ -184,7 +186,7 @@ final class ControlItem {
                     else {
                         return
                     }
-                    isVisible = shouldShow
+                    setVisible(shouldShow && section?.name == .alwaysHidden)
                 }
                 .store(in: &c)
 
@@ -207,6 +209,20 @@ final class ControlItem {
         }
 
         cancellables = c
+    }
+
+    private func setVisible(_ isVisible: Bool) {
+        guard self.isVisible != isVisible else {
+            return
+        }
+        self.isVisible = isVisible
+    }
+
+    private func setWindowFrame(_ frame: CGRect) {
+        guard windowFrame != frame else {
+            return
+        }
+        windowFrame = frame
     }
 
     /// Sets the initial configuration for the status item.
@@ -235,7 +251,7 @@ final class ControlItem {
 
         switch section.name {
         case .visible:
-            isVisible = true
+            setVisible(true)
             // Enable the cell, as it may have been previously disabled.
             button.cell?.isEnabled = true
             button.image = switch state {
@@ -245,26 +261,33 @@ final class ControlItem {
         case .hidden, .alwaysHidden:
             switch state {
             case .hideItems:
-                isVisible = true
+                setVisible(true)
                 // Prevent the cell from highlighting while expanded.
                 button.cell?.isEnabled = false
                 // Cell still sometimes briefly flashes on expansion unless manually unhighlighted.
                 button.isHighlighted = false
                 button.image = nil
             case .showItems:
-                isVisible = appState.settingsManager.showSectionDividers
+                setVisible(shouldShowSectionDivider(appState: appState))
                 // Enable the cell, as it may have been previously disabled.
                 button.cell?.isEnabled = true
                 // Set the image based on the section name and the hiding state.
                 switch section.name {
                 case .hidden:
-                    button.image = ControlItemImages.chevronLarge
+                    button.image = nil
                 case .alwaysHidden:
-                    button.image = ControlItemImages.chevronSmall
+                    button.image = ControlItemImages.chevronLarge
                 case .visible: break
                 }
             }
         }
+    }
+
+    private func shouldShowSectionDivider(appState: AppState) -> Bool {
+        guard appState.settingsManager.showSectionDividers else {
+            return false
+        }
+        return section?.name == .alwaysHidden
     }
 
     /// Updates the status item's menu bar footprint using the current section state.
@@ -339,15 +362,14 @@ final class ControlItem {
         // Setting `statusItem.isVisible` to `false` has the unwanted side
         // effect of deleting the preferredPosition. Cache and restore it.
         let autosaveName = statusItem.autosaveName as String
-        let cached = StatusItemDefaults[.preferredPosition, autosaveName]
+        let cached = Defaults.statusItemPreferredPosition(for: autosaveName)
         statusItem.isVisible = false
-        StatusItemDefaults[.preferredPosition, autosaveName] = cached
+        Defaults.setStatusItemPreferredPosition(cached, for: autosaveName)
     }
 }
 
 private enum ControlItemImages {
     static let chevronLarge = chevron(size: CGSize(width: 12, height: 12), lineWidth: 2)
-    static let chevronSmall = chevron(size: CGSize(width: 9, height: 9), lineWidth: 2)
 
     private static func chevron(size: CGSize, lineWidth: CGFloat) -> NSImage {
         let image = NSImage(size: size, flipped: false) { bounds in

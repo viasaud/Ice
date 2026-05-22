@@ -73,7 +73,7 @@ final class MenuBarManager: ObservableObject {
                     return
                 }
                 let hidden = options.contains(.hideMenuBar) || options.contains(.autoHideMenuBar)
-                isMenuBarHiddenBySystem = hidden
+                setMenuBarHiddenBySystem(hidden)
             }
             .store(in: &c)
 
@@ -92,12 +92,26 @@ final class MenuBarManager: ObservableObject {
                     else {
                         return
                     }
-                    isMenuBarHiddenBySystemUserDefaults = isMenuBarHidden
+                    setMenuBarHiddenBySystemUserDefaults(isMenuBarHidden)
                 }
                 .store(in: &c)
         }
 
         cancellables = c
+    }
+
+    private func setMenuBarHiddenBySystem(_ hidden: Bool) {
+        guard isMenuBarHiddenBySystem != hidden else {
+            return
+        }
+        isMenuBarHiddenBySystem = hidden
+    }
+
+    private func setMenuBarHiddenBySystemUserDefaults(_ hidden: Bool) {
+        guard isMenuBarHiddenBySystemUserDefaults != hidden else {
+            return
+        }
+        isMenuBarHiddenBySystemUserDefaults = hidden
     }
 
     /// Returns a Boolean value that indicates whether the given display
@@ -168,7 +182,7 @@ final class MenuBarManager: ObservableObject {
             action: nil,
             keyEquivalent: ""
         )
-        revealModeItem.image = MenuItemIcon.reveal
+        revealModeItem.image = .menuIcon("eye")
         revealModeItem.submenu = createRevealModeMenu()
         menu.addItem(revealModeItem)
 
@@ -177,7 +191,7 @@ final class MenuBarManager: ObservableObject {
             action: #selector(toggleSectionDividers),
             keyEquivalent: ""
         )
-        sectionDividersItem.image = MenuItemIcon.dividers
+        sectionDividersItem.image = .menuIcon("rectangle.split.3x1")
         sectionDividersItem.target = self
         sectionDividersItem.state = appState?.settingsManager.showSectionDividers == true ? .on : .off
         menu.addItem(sectionDividersItem)
@@ -187,7 +201,7 @@ final class MenuBarManager: ObservableObject {
             action: #selector(toggleAlwaysHiddenSection),
             keyEquivalent: ""
         )
-        alwaysHiddenSectionItem.image = MenuItemIcon.alwaysHidden
+        alwaysHiddenSectionItem.image = .menuIcon("eye.slash")
         alwaysHiddenSectionItem.target = self
         alwaysHiddenSectionItem.state = appState?.settingsManager.enableAlwaysHiddenSection == true ? .on : .off
         menu.addItem(alwaysHiddenSectionItem)
@@ -197,7 +211,7 @@ final class MenuBarManager: ObservableObject {
             action: nil,
             keyEquivalent: ""
         )
-        rehideIntervalItem.image = MenuItemIcon.hideAfter
+        rehideIntervalItem.image = .menuIcon("timer")
         rehideIntervalItem.submenu = createRehideIntervalMenu()
         rehideIntervalItem.isEnabled = appState?.settingsManager.hiddenItemsActivationMode == .click
         menu.addItem(rehideIntervalItem)
@@ -209,7 +223,7 @@ final class MenuBarManager: ObservableObject {
             action: #selector(toggleLaunchAtLogin),
             keyEquivalent: ""
         )
-        launchAtLoginItem.image = MenuItemIcon.launchAtStartup
+        launchAtLoginItem.image = .menuIcon("play.circle")
         launchAtLoginItem.target = self
         launchAtLoginItem.state = LaunchAtLogin.isEnabled ? .on : .off
         menu.addItem(launchAtLoginItem)
@@ -221,7 +235,7 @@ final class MenuBarManager: ObservableObject {
             action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)),
             keyEquivalent: ""
         )
-        checkForUpdatesItem.image = MenuItemIcon.updates
+        checkForUpdatesItem.image = .menuIcon("arrow.triangle.2.circlepath")
         checkForUpdatesItem.target = appState?.updaterController
         menu.addItem(checkForUpdatesItem)
 
@@ -230,7 +244,7 @@ final class MenuBarManager: ObservableObject {
             action: nil,
             keyEquivalent: ""
         )
-        versionItem.image = MenuItemIcon.version
+        versionItem.image = .menuIcon("info.circle")
         versionItem.isEnabled = false
         menu.addItem(versionItem)
 
@@ -239,7 +253,7 @@ final class MenuBarManager: ObservableObject {
             action: #selector(NSApp.terminate),
             keyEquivalent: ""
         )
-        quitItem.image = MenuItemIcon.quit
+        quitItem.image = .menuIcon("power")
         menu.addItem(quitItem)
 
         return menu
@@ -275,7 +289,7 @@ final class MenuBarManager: ObservableObject {
                 action: #selector(selectRehideInterval),
                 keyEquivalent: ""
             )
-            item.image = MenuItemIcon.interval
+            item.image = .menuIcon("clock")
             item.target = self
             item.representedObject = interval
             item.state = interval == selectedInterval ? .on : .off
@@ -292,14 +306,14 @@ final class MenuBarManager: ObservableObject {
         else {
             return
         }
-        appState?.settingsManager.hiddenItemsActivationMode = mode
+        appState?.settingsManager.setHiddenItemsActivationMode(mode)
     }
 
     @objc private func toggleSectionDividers(_ menuItem: NSMenuItem) {
         guard let manager = appState?.settingsManager else {
             return
         }
-        manager.showSectionDividers.toggle()
+        manager.toggleSectionDividers()
         menuItem.state = manager.showSectionDividers ? .on : .off
     }
 
@@ -307,7 +321,7 @@ final class MenuBarManager: ObservableObject {
         guard let manager = appState?.settingsManager else {
             return
         }
-        manager.enableAlwaysHiddenSection.toggle()
+        manager.toggleAlwaysHiddenSection()
         menuItem.state = manager.enableAlwaysHiddenSection ? .on : .off
     }
 
@@ -315,7 +329,7 @@ final class MenuBarManager: ObservableObject {
         guard let interval = menuItem.representedObject as? TimeInterval else {
             return
         }
-        appState?.settingsManager.tempShowInterval = interval
+        appState?.settingsManager.setTempShowInterval(interval)
     }
 
     @objc private func toggleLaunchAtLogin(_ menuItem: NSMenuItem) {
@@ -346,9 +360,9 @@ private extension HiddenItemsActivationMode {
     var menuIcon: NSImage? {
         switch self {
         case .click:
-            MenuItemIcon.click
+            .menuIcon("cursorarrow.click")
         case .hover:
-            MenuItemIcon.hover
+            .menuIcon("hand.point.up.left")
         }
     }
 }
@@ -359,20 +373,8 @@ private extension TimeInterval {
     }
 }
 
-private enum MenuItemIcon {
-    static let reveal = symbol("eye")
-    static let click = symbol("cursorarrow.click")
-    static let hover = symbol("hand.point.up.left")
-    static let dividers = symbol("rectangle.split.3x1")
-    static let alwaysHidden = symbol("eye.slash")
-    static let hideAfter = symbol("timer")
-    static let interval = symbol("clock")
-    static let launchAtStartup = symbol("play.circle")
-    static let updates = symbol("arrow.triangle.2.circlepath")
-    static let version = symbol("info.circle")
-    static let quit = symbol("power")
-
-    private static func symbol(_ name: String) -> NSImage? {
+private extension NSImage {
+    static func menuIcon(_ name: String) -> NSImage? {
         let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)
         image?.isTemplate = true
         return image

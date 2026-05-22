@@ -104,8 +104,8 @@ extension MigrationManager {
             controlItemDict["identifier"] = identifier
 
             // migrate the old autosave name to the new autosave name in UserDefaults
-            StatusItemDefaults.migrate(key: .preferredPosition, from: autosaveName, to: identifier)
-            StatusItemDefaults.migrate(key: .visible, from: autosaveName, to: identifier)
+            Defaults.migrateStatusItemValue(named: "Preferred Position", from: autosaveName, to: identifier)
+            Defaults.migrateStatusItemValue(named: "Visible", from: autosaveName, to: identifier)
 
             // replace the old "controlItem" dictionary with the new one
             sectionDict["controlItem"] = controlItemDict
@@ -146,8 +146,8 @@ extension MigrationManager {
 
     private func migrateControlItems0_10_0() throws {
         for identifier in ControlItem.Identifier.allCases {
-            StatusItemDefaults.migrate(
-                key: .preferredPosition,
+            Defaults.migrateStatusItemValue(
+                named: "Preferred Position",
                 from: identifier.deprecatedRawValue,
                 to: identifier.rawValue
             )
@@ -179,17 +179,17 @@ extension MigrationManager {
 
         for identifier in ControlItem.Identifier.allCases {
             if
-                StatusItemDefaults[.visible, identifier.rawValue] == false,
-                StatusItemDefaults[.preferredPosition, identifier.rawValue] == nil
+                Defaults.statusItemVisible(for: identifier.rawValue) == false,
+                Defaults.statusItemPreferredPosition(for: identifier.rawValue) == nil
             {
                 needsResetPreferredPositions = true
             }
-            StatusItemDefaults[.visible, identifier.rawValue] = nil
+            Defaults.setStatusItemVisible(nil, for: identifier.rawValue)
         }
 
         if needsResetPreferredPositions {
             for identifier in ControlItem.Identifier.allCases {
-                StatusItemDefaults[.preferredPosition, identifier.rawValue] = nil
+                Defaults.setStatusItemPreferredPosition(nil, for: identifier.rawValue)
             }
 
             let alert = NSAlert()

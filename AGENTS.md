@@ -20,8 +20,8 @@ This repository uses Xcode file-system-synchronized groups. The filesystem under
 - `MinimalIce/MenuBar/Items/ItemManagement`: item cache refresh, CGEvent
   routing, movement, clicking, temporary reveal, rehide behavior, and section
   classification.
-- `MinimalIce/Settings/State`: the single settings manager plus reveal policy
-  value types. There is no separate settings UI in this fork.
+- `MinimalIce/Settings/State`: the single settings manager. There is no
+  separate settings UI in this fork.
 - `MinimalIce/Permissions`: Accessibility-only permission checking.
 - `MinimalIce/Platform`: AppKit event monitoring, WindowServer adapters,
   private CoreGraphics bridging, and platform shims.
@@ -93,10 +93,11 @@ This repository uses Xcode file-system-synchronized groups. The filesystem under
   appear in the system menu bar.
 - Control item: a Minimal Ice-owned menu bar item used to control or delimit a
   section.
-- Visible section: the normal menu bar area to the right of the hidden section
-  control item.
+- Visible section: an internal compatibility section for items to the right of
+  the interactive chevron. Do not expose a separate visible-section divider in
+  the menu bar.
 - Hidden section: the revealable area between the always-hidden section control
-  item and the hidden section control item.
+  item and the interactive chevron.
 - Always-hidden section: the more restricted section to the left of the
   always-hidden control item.
 - Reveal: a user action that temporarily shows a hidden section.
@@ -125,7 +126,14 @@ support flows.
   `AXIsProcessTrustedWithOptions`.
 - Hidden items reveal on hover by default. Hover reveal activates instantly only
   when the pointer is over the chevron and hides immediately when the pointer
-  leaves the menu bar.
+  leaves the menu bar, unless a revealed item's menu or popover is open.
+- Do not show the middle visible-section chevron. The menu bar should expose
+  only the interactive chevron and, when enabled, the always-hidden divider; the
+  always-hidden divider uses the same large chevron artwork as the interactive
+  chevron.
+- The user-facing menu bar layout is
+  `always hidden < hidden < always visible`. The old visible section remains an
+  implementation detail only.
 - Showing all sections while command-dragging menu bar items is always enabled.
 
 ## App Icon Notes

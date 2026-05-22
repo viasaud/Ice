@@ -117,6 +117,24 @@ struct WindowInfo {
         }
         self.init(dictionary: dictionary)
     }
+
+    /// Creates windows with the given window identifiers.
+    static func windows(withIDs windowIDs: [CGWindowID]) -> [WindowInfo] {
+        guard !windowIDs.isEmpty else {
+            return []
+        }
+
+        var pointers = windowIDs.map { UnsafeRawPointer(bitPattern: Int($0)) }
+        guard
+            let array = pointers.withUnsafeMutableBufferPointer({
+                CFArrayCreate(kCFAllocatorDefault, $0.baseAddress, $0.count, nil)
+            }),
+            let list = CGWindowListCreateDescriptionFromArray(array) as? [CFDictionary]
+        else {
+            return []
+        }
+        return list.compactMap { WindowInfo(dictionary: $0) }
+    }
 }
 
 // MARK: - WindowList Operations
@@ -260,7 +278,12 @@ extension WindowInfo {
 extension WindowInfo {
     /// Returns the wallpaper window in the given windows for the given display.
     static func getWallpaperWindow(from windows: [WindowInfo], for display: CGDirectDisplayID) -> WindowInfo? {
-        windows.first(where: Predicates.wallpaperWindow(for: display))
+        let displayBounds = CGDisplayBounds(display)
+        return windows.first { window in
+            window.owningApplication?.bundleIdentifier == "com.apple.dock" &&
+            window.title?.hasPrefix("Wallpaper") == true &&
+            displayBounds.contains(window.frame)
+        }
     }
 
     /// Returns the wallpaper window for the given display.
@@ -273,7 +296,14 @@ extension WindowInfo {
 extension WindowInfo {
     /// Returns the menu bar window for the given display.
     static func getMenuBarWindow(from windows: [WindowInfo], for display: CGDirectDisplayID) -> WindowInfo? {
-        windows.first(where: Predicates.menuBarWindow(for: display))
+        let displayBounds = CGDisplayBounds(display)
+        return windows.first { window in
+            window.isWindowServerWindow &&
+            window.isOnScreen &&
+            window.layer == kCGMainMenuWindowLevel &&
+            window.title == "Menubar" &&
+            displayBounds.contains(window.frame)
+        }
     }
 
     /// Returns the menu bar window for the given display.

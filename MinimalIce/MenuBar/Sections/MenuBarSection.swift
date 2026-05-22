@@ -45,27 +45,14 @@ final class MenuBarSection {
     /// A timer that manages rehiding the section.
     private var rehideTimer: Timer?
 
-    /// An event monitor that handles starting the rehide timer when the mouse
-    /// is outside of the menu bar.
-    private var rehideMonitor: UniversalEventMonitor?
-
     /// A Boolean value that indicates whether the section is hidden.
     var isHidden: Bool {
-        switch name {
-        case .visible, .hidden:
-            return controlItem.state == .hideItems
-        case .alwaysHidden:
-            return controlItem.state == .hideItems
-        }
+        controlItem.state == .hideItems
     }
 
     /// A Boolean value that indicates whether the section is enabled.
     var isEnabled: Bool {
-        if case .visible = name {
-            // The visible section should always be enabled.
-            return true
-        }
-        return controlItem.isAddedToMenuBar
+        name == .visible || controlItem.isAddedToMenuBar
     }
 
     /// Creates a section with the given name, control item, and app state.
@@ -96,36 +83,38 @@ final class MenuBarSection {
         else {
             return
         }
-        guard controlItem.isAddedToMenuBar else {
-            // The section is disabled.
-            // TODO: Can we use isEnabled for this check?
+        guard
+            isEnabled,
+            let sectionsToShow = sectionsToShow(in: appState)
+        else {
             return
         }
+
+        sectionsToShow.forEach { $0.setControlItemState(.showItems) }
+        startRehideTimer(after: delay)
+    }
+
+    private func sectionsToShow(in appState: AppState) -> [MenuBarSection]? {
         switch name {
         case .visible:
             guard let hiddenSection = appState.menuBarManager.section(withName: .hidden) else {
-                return
+                return nil
             }
-            controlItem.state = .showItems
-            hiddenSection.controlItem.state = .showItems
+            return [self, hiddenSection]
         case .hidden:
             guard let visibleSection = appState.menuBarManager.section(withName: .visible) else {
-                return
+                return nil
             }
-            controlItem.state = .showItems
-            visibleSection.controlItem.state = .showItems
+            return [self, visibleSection]
         case .alwaysHidden:
             guard
                 let hiddenSection = appState.menuBarManager.section(withName: .hidden),
                 let visibleSection = appState.menuBarManager.section(withName: .visible)
             else {
-                return
+                return nil
             }
-            controlItem.state = .showItems
-            hiddenSection.controlItem.state = .showItems
-            visibleSection.controlItem.state = .showItems
+            return [self, hiddenSection, visibleSection]
         }
-        startRehideTimer(after: delay)
     }
 
     /// Hides the section.
@@ -136,32 +125,37 @@ final class MenuBarSection {
         else {
             return
         }
+
+        guard let sectionsToHide = sectionsToHide(in: appState) else {
+            return
+        }
+
+        sectionsToHide.forEach { $0.setControlItemState(.hideItems) }
+        appState.allowShowOnHover()
+        stopRehideChecks()
+    }
+
+    private func sectionsToHide(in appState: AppState) -> [MenuBarSection]? {
         switch name {
         case .visible:
             guard
                 let hiddenSection = appState.menuBarManager.section(withName: .hidden),
                 let alwaysHiddenSection = appState.menuBarManager.section(withName: .alwaysHidden)
             else {
-                return
+                return nil
             }
-            controlItem.state = .hideItems
-            hiddenSection.controlItem.state = .hideItems
-            alwaysHiddenSection.controlItem.state = .hideItems
+            return [self, hiddenSection, alwaysHiddenSection]
         case .hidden:
             guard
                 let visibleSection = appState.menuBarManager.section(withName: .visible),
                 let alwaysHiddenSection = appState.menuBarManager.section(withName: .alwaysHidden)
             else {
-                return
+                return nil
             }
-            controlItem.state = .hideItems
-            visibleSection.controlItem.state = .hideItems
-            alwaysHiddenSection.controlItem.state = .hideItems
+            return [self, visibleSection, alwaysHiddenSection]
         case .alwaysHidden:
-            controlItem.state = .hideItems
+            return [self]
         }
-        appState.allowShowOnHover()
-        stopRehideChecks()
     }
 
     /// Toggles the visibility of the section.
@@ -176,18 +170,14 @@ final class MenuBarSection {
     /// Starts a timer to rehide the section.
     private func startRehideTimer(after delay: TimeInterval?) {
         rehideTimer?.invalidate()
-        rehideMonitor?.stop()
 
         guard let delay else {
             return
         }
 
         rehideTimer = .scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
-            guard let self else {
-                return
-            }
-            Task {
-                await self.hide()
+            Task { @MainActor [weak self] in
+                self?.hide()
             }
         }
     }
@@ -195,13 +185,13 @@ final class MenuBarSection {
     /// Stops running checks to determine when to rehide the section.
     private func stopRehideChecks() {
         rehideTimer?.invalidate()
-        rehideMonitor?.stop()
         rehideTimer = nil
-        rehideMonitor = nil
     }
-}
 
-// MARK: - Logger
-private extension Logger {
-    static let menuBarSection = Logger(category: "MenuBarSection")
+    private func setControlItemState(_ state: ControlItem.HidingState) {
+        guard controlItem.state != state else {
+            return
+        }
+        controlItem.state = state
+    }
 }

@@ -5,9 +5,332 @@
 
 import Cocoa
 
+enum MenuBarItemEventType {
+    case move(CGEventType)
+    case click(CGEventType)
+
+    var cgEventType: CGEventType {
+        switch self {
+        case .move(let type), .click(let type): type
+        }
+    }
+
+    var cgEventFlags: CGEventFlags {
+        switch self {
+        case .move(.leftMouseDown): .maskCommand
+        case .move, .click: []
+        }
+    }
+
+    var mouseButton: CGMouseButton {
+        cgEventType.mouseButton
+    }
+}
+
+private extension CGEventType {
+    var mouseButton: CGMouseButton {
+        switch self {
+        case .leftMouseDown, .leftMouseUp: .left
+        case .rightMouseDown, .rightMouseUp: .right
+        default: .center
+        }
+    }
+}
+
+extension CGEventField {
+    static let windowID = requiredField(rawValue: 0x33)
+
+    static let menuBarItemEventFields: [CGEventField] = [
+        .eventSourceUserData,
+        .mouseEventWindowUnderMousePointer,
+        .mouseEventWindowUnderMousePointerThatCanHandleThisEvent,
+        .windowID,
+    ]
+
+    private static func requiredField(rawValue: UInt32) -> CGEventField {
+        guard let field = CGEventField(rawValue: rawValue) else {
+            preconditionFailure("Missing required CGEventField for raw value \(rawValue)")
+        }
+        return field
+    }
+}
+
+extension CGEventFilterMask {
+    static let permitAllEvents: CGEventFilterMask = [
+        .permitLocalMouseEvents,
+        .permitLocalKeyboardEvents,
+        .permitSystemDefinedEvents,
+    ]
+}
+
+extension CGEventType {
+    var logString: String {
+        switch self {
+        case .null: "null event"
+        case .leftMouseDown: "leftMouseDown event"
+        case .leftMouseUp: "leftMouseUp event"
+        case .rightMouseDown: "rightMouseDown event"
+        case .rightMouseUp: "rightMouseUp event"
+        case .mouseMoved: "mouseMoved event"
+        case .leftMouseDragged: "leftMouseDragged event"
+        case .rightMouseDragged: "rightMouseDragged event"
+        case .keyDown: "keyDown event"
+        case .keyUp: "keyUp event"
+        case .flagsChanged: "flagsChanged event"
+        case .scrollWheel: "scrollWheel event"
+        case .tabletPointer: "tabletPointer event"
+        case .tabletProximity: "tabletProximity event"
+        case .otherMouseDown: "otherMouseDown event"
+        case .otherMouseUp: "otherMouseUp event"
+        case .otherMouseDragged: "otherMouseDragged event"
+        case .tapDisabledByTimeout: "tapDisabledByTimeout event"
+        case .tapDisabledByUserInput: "tapDisabledByUserInput event"
+        @unknown default: "unknown event"
+        }
+    }
+}
+
+extension CGMouseButton {
+    var logString: String {
+        switch self {
+        case .left: "left mouse button"
+        case .right: "right mouse button"
+        case .center: "center mouse button"
+        @unknown default: "unknown mouse button"
+        }
+    }
+
+    var clickEventTypes: (down: CGEventType, up: CGEventType) {
+        switch self {
+        case .left: (.leftMouseDown, .leftMouseUp)
+        case .right: (.rightMouseDown, .rightMouseUp)
+        default: (.otherMouseDown, .otherMouseUp)
+        }
+    }
+}
+
+extension CGEvent {
+    class func menuBarItemEvent(
+        type: MenuBarItemEventType,
+        location: CGPoint,
+        item: MenuBarItem,
+        pid: pid_t,
+        source: CGEventSource
+    ) -> CGEvent? {
+        let mouseType = type.cgEventType
+        let mouseButton = type.mouseButton
+
+        guard let event = CGEvent(
+            mouseEventSource: source,
+            mouseType: mouseType,
+            mouseCursorPosition: location,
+            mouseButton: mouseButton
+        ) else {
+            return nil
+        }
+
+        event.flags = type.cgEventFlags
+
+        let targetPID = Int64(pid)
+        let userData = Int64(truncatingIfNeeded: Int(bitPattern: ObjectIdentifier(event)))
+        let windowID = Int64(item.windowID)
+
+        event.setIntegerValueField(.eventTargetUnixProcessID, value: targetPID)
+        event.setIntegerValueField(.eventSourceUserData, value: userData)
+        event.setIntegerValueField(.mouseEventWindowUnderMousePointer, value: windowID)
+        event.setIntegerValueField(.mouseEventWindowUnderMousePointerThatCanHandleThisEvent, value: windowID)
+        event.setIntegerValueField(.windowID, value: windowID)
+
+        if case .click = type {
+            event.setIntegerValueField(.mouseEventClickState, value: 1)
+        }
+
+        return event
+    }
+}
+
 // MARK: - Event Routing
 
 extension MenuBarItemManager {
+    struct EventError: Error, CustomStringConvertible {
+        enum ErrorCode: Int {
+            case couldNotComplete
+            case eventCreationFailure
+            case invalidAppState
+            case invalidEventSource
+            case invalidCursorLocation
+            case invalidItem
+            case notMovable
+            case eventOperationTimeout
+            case frameCheckTimeout
+            case otherTimeout
+        }
+
+        let code: ErrorCode
+        let item: MenuBarItem
+
+        var description: String {
+            "\(Self.self)(code: \(code) (rawValue: \(code.rawValue)), item: \(item.logString))"
+        }
+    }
+
+    func performMenuBarItemOperation(
+        on item: MenuBarItem,
+        stopsEventMonitors: Bool = false,
+        operation: () async throws -> Void
+    ) async throws {
+        guard let cursorLocation = MouseCursor.locationCoreGraphics else {
+            throw EventError(code: .invalidCursorLocation, item: item)
+        }
+
+        let eventManager: EventManager?
+        if stopsEventMonitors {
+            guard let appState else {
+                throw EventError(code: .invalidAppState, item: item)
+            }
+            eventManager = appState.eventManager
+        } else {
+            eventManager = nil
+        }
+        eventManager?.stopAll()
+        defer {
+            eventManager?.startAll()
+        }
+
+        MouseCursor.hide()
+        defer {
+            MouseCursor.warp(to: cursorLocation)
+            MouseCursor.show()
+        }
+
+        try await operation()
+    }
+
+    private func runWithFallback(
+        fallbackEvent: CGEvent,
+        fallbackAction: String,
+        to location: EventTap.Location,
+        item: MenuBarItem,
+        operation: () async throws -> Void
+    ) async throws {
+        do {
+            try await operation()
+        } catch {
+            await postFallback(fallbackEvent, action: fallbackAction, to: location, item: item)
+            throw error
+        }
+    }
+
+    private func postFallback(
+        _ event: CGEvent,
+        action: String,
+        to location: EventTap.Location,
+        item: MenuBarItem
+    ) async {
+        do {
+            Logger.itemManager.debug("Posting fallback event for \(action) \(item.logString)")
+            try await postEventAndWaitToReceive(event, to: location, item: item)
+        } catch {
+            Logger.itemManager.error("Failed to post fallback event for \(action) \(item.logString)")
+        }
+    }
+
+    func permitMenuBarItemEvents(for item: MenuBarItem) throws {
+        try permitAllEvents(
+            for: .combinedSessionState,
+            during: [
+                .eventSuppressionStateRemoteMouseDrag,
+                .eventSuppressionStateSuppressionInterval,
+            ],
+            suppressionInterval: 0,
+            item: item
+        )
+    }
+
+    func click(item: MenuBarItem, with mouseButton: CGMouseButton) async throws {
+        guard let source = CGEventSource(stateID: .hidSystemState) else {
+            throw EventError(code: .invalidEventSource, item: item)
+        }
+        guard let currentFrame = getCurrentFrame(for: item) else {
+            throw EventError(code: .invalidItem, item: item)
+        }
+
+        let buttonEvents = mouseButton.clickEventTypes
+        let clickPoint = CGPoint(x: currentFrame.midX, y: currentFrame.midY)
+
+        guard
+            let mouseDownEvent = CGEvent.menuBarItemEvent(
+                type: .click(buttonEvents.down),
+                location: clickPoint,
+                item: item,
+                pid: item.ownerPID,
+                source: source
+            ),
+            let mouseUpEvent = CGEvent.menuBarItemEvent(
+                type: .click(buttonEvents.up),
+                location: clickPoint,
+                item: item,
+                pid: item.ownerPID,
+                source: source
+            ),
+            let fallbackEvent = CGEvent.menuBarItemEvent(
+                type: .click(buttonEvents.up),
+                location: clickPoint,
+                item: item,
+                pid: item.ownerPID,
+                source: source
+            )
+        else {
+            throw EventError(code: .eventCreationFailure, item: item)
+        }
+
+        try permitMenuBarItemEvents(for: item)
+        try await performMenuBarItemOperation(on: item) {
+            Logger.itemManager.info("Clicking \(item.logString) with \(mouseButton.logString)")
+            try await postEventsAndWaitToReceive(
+                [mouseDownEvent, mouseUpEvent],
+                to: .sessionEventTap,
+                fallbackEvent: fallbackEvent,
+                item: item,
+                fallbackAction: "clicking"
+            )
+        }
+    }
+
+    func postEventsAndWaitToReceive(
+        _ events: [CGEvent],
+        to location: EventTap.Location,
+        fallbackEvent: CGEvent,
+        item: MenuBarItem,
+        fallbackAction: String
+    ) async throws {
+        try await runWithFallback(fallbackEvent: fallbackEvent, fallbackAction: fallbackAction, to: location, item: item) {
+            for event in events {
+                try await postEventAndWaitToReceive(event, to: location, item: item)
+            }
+        }
+    }
+
+    func routeEventsThroughTapBridge(
+        _ events: [CGEvent],
+        from firstLocation: EventTap.Location,
+        to secondLocation: EventTap.Location,
+        waitingForFrameChangeOf item: MenuBarItem,
+        fallbackEvent: CGEvent,
+        fallbackAction: String
+    ) async throws {
+        try await runWithFallback(fallbackEvent: fallbackEvent, fallbackAction: fallbackAction, to: secondLocation, item: item) {
+            for event in events {
+                try await routeEventThroughTapBridge(
+                    event,
+                    from: firstLocation,
+                    to: secondLocation,
+                    waitingForFrameChangeOf: item
+                )
+            }
+        }
+    }
+
     /// Returns a Boolean value that indicates whether the given events have the
     /// same values for each integer value field.
     ///
@@ -256,6 +579,7 @@ extension MenuBarItemManager {
                     Logger.itemManager.debug("Menu bar item frame for \(item.logString) has changed to \(NSStringFromRect(currentFrame))")
                     return
                 }
+                try await Task.sleep(for: Timing.pollingInterval)
             }
         }
         do {

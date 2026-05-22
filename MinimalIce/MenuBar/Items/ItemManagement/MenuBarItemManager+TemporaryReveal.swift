@@ -8,8 +8,12 @@ import Cocoa
 extension MenuBarItemManager {
     /// Context for a temporarily shown menu bar item.
     struct TempShownItemContext {
-        /// The information associated with the item.
+        let windowID: CGWindowID
         let info: MenuBarItemInfo
+
+        func matchingItem(in items: [MenuBarItem]) -> MenuBarItem? {
+            items.first { $0.windowID == windowID } ?? items.first { $0.info == info }
+        }
 
         /// The destination to return the item to.
         let returnDestination: MoveDestination
@@ -71,7 +75,10 @@ extension MenuBarItemManager {
         guard shouldClick else {
             return
         }
-        Task {
+        Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
             do {
                 try await click(item: item, with: mouseButton)
             } catch {
@@ -131,36 +138,63 @@ extension MenuBarItemManager {
         using plan: TemporaryRevealPlan,
         clickWhenFinished: Bool,
         mouseButton: CGMouseButton
-    ) async {
+    ) async -> Bool {
         do {
             if clickWhenFinished {
                 try await slowMove(item: item, to: .leftOfItem(plan.targetItem))
-                try await click(item: item, with: mouseButton)
+                do {
+                    try await click(item: item, with: mouseButton)
+                } catch {
+                    Logger.itemManager.error("Failed to click temporarily shown \(item.logString) (error: \(error))")
+                }
             } else {
                 try await move(item: item, to: .leftOfItem(plan.targetItem))
             }
+            return true
         } catch {
-            let action = clickWhenFinished ? "temporarily show and click" : "temporarily show"
-            Logger.itemManager.error("Failed to \(action) \(item.logString) (error: \(error))")
+            Logger.itemManager.error("Failed to temporarily show \(item.logString) (error: \(error))")
+            return false
         }
     }
 
-    private func cacheTemporarilyShownItem(_ item: MenuBarItem, using plan: TemporaryRevealPlan) {
+    private func rememberTemporarilyShownItem(_ item: MenuBarItem, using plan: TemporaryRevealPlan) {
         let currentWindows = WindowInfo.getOnScreenWindows()
+        let initialWindowIDs = Set(plan.initialWindows.map(\.windowID))
 
         let shownInterfaceWindow = currentWindows.first { currentWindow in
             currentWindow.ownerPID == item.ownerPID &&
-            !plan.initialWindows.contains { initialWindow in
-                currentWindow.windowID == initialWindow.windowID
-            }
+            !initialWindowIDs.contains(currentWindow.windowID)
         }
 
         let context = TempShownItemContext(
+            windowID: item.windowID,
             info: item.info,
             returnDestination: plan.returnDestination,
             shownInterfaceWindow: shownInterfaceWindow
         )
         tempShownItemContexts.append(context)
+    }
+
+    private func runTemporaryReveal(
+        _ item: MenuBarItem,
+        using plan: TemporaryRevealPlan,
+        clickWhenFinished: Bool,
+        mouseButton: CGMouseButton
+    ) {
+        Task { @MainActor [weak self, weak appState] in
+            guard
+                let self,
+                let appState
+            else {
+                return
+            }
+            guard await revealTemporarily(item, using: plan, clickWhenFinished: clickWhenFinished, mouseButton: mouseButton) else {
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(100))
+            rememberTemporarilyShownItem(item, using: plan)
+            runTempShownItemTimer(for: appState.settingsManager.tempShowInterval)
+        }
     }
 
     /// Schedules a timer for the given interval, attempting to rehide the current
@@ -174,8 +208,8 @@ extension MenuBarItemManager {
                 return
             }
             Logger.itemManager.debug("Rehide timer fired")
-            Task {
-                await self.rehideTempShownItems()
+            Task { @MainActor [weak self] in
+                await self?.rehideTempShownItems()
             }
         }
     }
@@ -216,17 +250,7 @@ extension MenuBarItemManager {
             return
         }
 
-        Task {
-            await revealTemporarily(
-                item,
-                using: revealPlan,
-                clickWhenFinished: clickWhenFinished,
-                mouseButton: mouseButton
-            )
-            try? await Task.sleep(for: .milliseconds(100))
-            cacheTemporarilyShownItem(item, using: revealPlan)
-            runTempShownItemTimer(for: appState.settingsManager.behavior.rehideInterval)
-        }
+        runTemporaryReveal(item, using: revealPlan, clickWhenFinished: clickWhenFinished, mouseButton: mouseButton)
     }
 
     /// Rehides all temporarily shown items.
@@ -267,7 +291,7 @@ extension MenuBarItemManager {
         }
 
         while let context = tempShownItemContexts.popLast() {
-            guard let item = items.first(where: { $0.info == context.info }) else {
+            guard let item = context.matchingItem(in: items) else {
                 continue
             }
             do {

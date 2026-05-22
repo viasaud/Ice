@@ -4,6 +4,7 @@
 //
 
 import Cocoa
+import Combine
 
 // MARK: - Move Items
 
@@ -34,7 +35,7 @@ extension MenuBarItemManager {
     ///
     /// - Parameter item: The item to return the current frame for.
     func getCurrentFrame(for item: MenuBarItem) -> CGRect? {
-        guard let frame = WindowServerAdapter.windowFrame(for: item.window.windowID) else {
+        guard let frame = WindowServerAdapter.menuBarItemFrame(for: item.window.windowID) else {
             Logger.itemManager.error("Couldn't get current frame for \(item.logString)")
             return nil
         }
@@ -153,45 +154,18 @@ extension MenuBarItemManager {
             throw EventError(code: .eventCreationFailure, item: item)
         }
 
-        try permitAllEvents(
-            for: .combinedSessionState,
-            during: [
-                .eventSuppressionStateRemoteMouseDrag,
-                .eventSuppressionStateSuppressionInterval,
-            ],
-            suppressionInterval: 0,
-            item: item
-        )
+        try permitMenuBarItemEvents(for: item)
 
         lastItemMoveStartDate = .now
 
-        do {
-            try await routeEventThroughTapBridge(
-                mouseDownEvent,
-                from: .pid(item.ownerPID),
-                to: .sessionEventTap,
-                waitingForFrameChangeOf: item
-            )
-            try await routeEventThroughTapBridge(
-                mouseUpEvent,
-                from: .pid(item.ownerPID),
-                to: .sessionEventTap,
-                waitingForFrameChangeOf: item
-            )
-        } catch {
-            do {
-                Logger.itemManager.debug("Posting fallback event for moving \(item.logString)")
-                // Catch this, as we still want to throw the existing error if the fallback fails.
-                try await postEventAndWaitToReceive(
-                    fallbackEvent,
-                    to: .sessionEventTap,
-                    item: item
-                )
-            } catch {
-                Logger.itemManager.error("Failed to post fallback event for moving \(item.logString)")
-            }
-            throw error
-        }
+        try await routeEventsThroughTapBridge(
+            [mouseDownEvent, mouseUpEvent],
+            from: .pid(item.ownerPID),
+            to: .sessionEventTap,
+            waitingForFrameChangeOf: item,
+            fallbackEvent: fallbackEvent,
+            fallbackAction: "moving"
+        )
     }
 
     /// Moves a menu bar item to the given destination.
@@ -216,47 +190,31 @@ extension MenuBarItemManager {
 
         Logger.itemManager.info("Moving \(item.logString) to \(destination.logString)")
 
-        guard let appState else {
-            throw EventError(code: .invalidAppState, item: item)
-        }
-        guard let cursorLocation = MouseCursor.locationCoreGraphics else {
-            throw EventError(code: .invalidCursorLocation, item: item)
-        }
         guard let initialFrame = getCurrentFrame(for: item) else {
             throw EventError(code: .invalidItem, item: item)
         }
 
-        appState.eventManager.stopAll()
-        defer {
-            appState.eventManager.startAll()
-        }
-
-        MouseCursor.hide()
-
-        defer {
-            MouseCursor.warp(to: cursorLocation)
-            MouseCursor.show()
-        }
-
-        // Item movement can occasionally fail. Retry a few times,
-        // throwing the last attempt's error if it fails.
-        for attempt in 1...MoveRetry.maxAttempts {
-            do {
-                try await moveItemWithoutRestoringMouseLocation(item, to: destination)
-                guard let newFrame = getCurrentFrame(for: item) else {
-                    throw EventError(code: .invalidItem, item: item)
+        try await performMenuBarItemOperation(on: item, stopsEventMonitors: true) {
+            // Item movement can occasionally fail. Retry a few times,
+            // throwing the last attempt's error if it fails.
+            for attempt in 1...MoveRetry.maxAttempts {
+                do {
+                    try await moveItemWithoutRestoringMouseLocation(item, to: destination)
+                    guard let newFrame = getCurrentFrame(for: item) else {
+                        throw EventError(code: .invalidItem, item: item)
+                    }
+                    if newFrame != initialFrame {
+                        Logger.itemManager.info("Successfully moved \(item.logString)")
+                        break
+                    } else {
+                        throw EventError(code: .couldNotComplete, item: item)
+                    }
+                } catch where attempt < MoveRetry.maxAttempts {
+                    Logger.itemManager.warning("Attempt \(attempt) to move \(item.logString) failed (error: \(error))")
+                    try await wakeUpItem(item)
+                    Logger.itemManager.info("Retrying move of \(item.logString)")
+                    continue
                 }
-                if newFrame != initialFrame {
-                    Logger.itemManager.info("Successfully moved \(item.logString)")
-                    break
-                } else {
-                    throw EventError(code: .couldNotComplete, item: item)
-                }
-            } catch where attempt < MoveRetry.maxAttempts {
-                Logger.itemManager.warning("Attempt \(attempt) to move \(item.logString) failed (error: \(error))")
-                try await wakeUpItem(item)
-                Logger.itemManager.info("Retrying move of \(item.logString)")
-                continue
             }
         }
     }
@@ -280,12 +238,80 @@ extension MenuBarItemManager {
                 if try await self.itemHasCorrectPosition(item: item, for: destination) {
                     return
                 }
+                try await Task.sleep(for: Timing.pollingInterval)
             }
         }
         do {
             try await waitTask.value
         } catch is TaskTimeoutError {
             throw EventError(code: .otherTimeout, item: item)
+        }
+    }
+}
+
+extension MenuBarItemManager {
+    private func waitWithTask(
+        timeout: Duration?,
+        operation: @escaping @Sendable () async throws -> Void
+    ) async throws {
+        let task = if let timeout {
+            Task(timeout: timeout, operation: operation)
+        } else {
+            Task(operation: operation)
+        }
+        try await task.value
+    }
+
+    func waitForItemsToStopMoving(timeout: Duration? = nil) async throws {
+        try await waitWithTask(timeout: timeout) { [weak self] in
+            guard let self else {
+                return
+            }
+            while await isMovingItem {
+                try Task.checkCancellation()
+                try await Task.sleep(for: Timing.pollingInterval)
+            }
+        }
+    }
+
+    func waitForMouseToStopMoving(threshold: TimeInterval = 0.1, timeout: Duration? = nil) async throws {
+        try await waitWithTask(timeout: timeout) { [weak self] in
+            guard let self else {
+                return
+            }
+            while true {
+                try Task.checkCancellation()
+                guard let date = await lastMouseMoveStartDate else {
+                    break
+                }
+                if Date.now.timeIntervalSince(date) > threshold {
+                    break
+                }
+                try await Task.sleep(for: Timing.pollingInterval)
+            }
+        }
+    }
+
+    func waitForNoModifiersPressed(timeout: Duration? = nil) async throws {
+        try await waitWithTask(timeout: timeout) {
+            if NSEvent.modifierFlags.isEmpty {
+                return
+            }
+
+            var cancellable: AnyCancellable?
+            await withCheckedContinuation { continuation in
+                cancellable = Publishers.Merge(
+                    UniversalEventMonitor.publisher(for: .flagsChanged),
+                    RunLoopLocalEventMonitor.publisher(for: .flagsChanged, mode: .eventTracking)
+                )
+                .removeDuplicates()
+                .sink { _ in
+                    if NSEvent.modifierFlags.isEmpty {
+                        cancellable?.cancel()
+                        continuation.resume()
+                    }
+                }
+            }
         }
     }
 }

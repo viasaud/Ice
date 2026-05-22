@@ -11,7 +11,7 @@ import SwiftUI
 @MainActor
 final class AppState: ObservableObject {
     /// A Boolean value that indicates whether the active space is fullscreen.
-    @Published private(set) var isActiveSpaceFullscreen = WindowServerAdapter.isSpaceFullscreen(WindowServerAdapter.activeSpaceID)
+    @Published private(set) var isActiveSpaceFullscreen = WindowServerAdapter.isActiveSpaceFullscreen
 
     /// Manager for events received by the app.
     private(set) lazy var eventManager = EventManager(appState: self)
@@ -58,14 +58,14 @@ final class AppState: ObservableObject {
     /// A Boolean value that indicates whether the application can set the cursor
     /// in the background.
     var setsCursorInBackground: Bool {
-        get { WindowServerAdapter.connectionProperty(forKey: "SetsCursorInBackground") as? Bool ?? false }
-        set { WindowServerAdapter.setConnectionProperty(newValue, forKey: "SetsCursorInBackground") }
+        get { WindowServerAdapter.canSetCursorInBackground }
+        set { WindowServerAdapter.canSetCursorInBackground = newValue }
     }
 
     /// A Boolean value that indicates whether the always-hidden section can be
     /// revealed by a user action.
     var canRevealAlwaysHiddenSection: Bool {
-        settingsManager.revealPolicy.canRevealAlwaysHiddenSection
+        settingsManager.enableAlwaysHiddenSection
     }
 
     /// Configures the internal observers for the app state.
@@ -92,7 +92,11 @@ final class AppState: ObservableObject {
             guard let self else {
                 return
             }
-            isActiveSpaceFullscreen = WindowServerAdapter.isSpaceFullscreen(WindowServerAdapter.activeSpaceID)
+            let isFullscreen = WindowServerAdapter.isActiveSpaceFullscreen
+            guard isActiveSpaceFullscreen != isFullscreen else {
+                return
+            }
+            isActiveSpaceFullscreen = isFullscreen
         }
         .store(in: &c)
 
@@ -116,41 +120,47 @@ final class AppState: ObservableObject {
 
     /// Sets up the app state.
     func performSetup() {
+        settingsManager.performSetup()
         configureCancellables()
         permissionsManager.stopAllChecks()
         menuBarManager.performSetup()
         eventManager.performSetup()
-        settingsManager.performSetup()
         _ = updaterController
         itemManager.performSetup()
     }
 
     /// Toggles the appropriate menu bar section for the current modifier flags.
     func toggleMenuBarSection(using modifierFlags: NSEvent.ModifierFlags, preferredSection: MenuBarSection? = nil) {
-        switch settingsManager.revealPolicy.toggleDecision(
-            modifierFlags: modifierFlags,
-            preferredSectionName: preferredSection?.name
-        ) {
-        case .toggle(let sectionName, let delay):
-            menuBarManager.section(withName: sectionName)?.toggle(rehideAfter: delay)
-        case .none:
+        let rehideDelay = settingsManager.hiddenItemsActivationMode == .click ? nil : settingsManager.tempShowInterval
+        let sectionName = preferredSection?.name ?? .hidden
+
+        if modifierFlags.contains(.option) {
+            guard canRevealAlwaysHiddenSection else {
+                return
+            }
+            menuBarManager.section(withName: .alwaysHidden)?.toggle(rehideAfter: rehideDelay)
             return
         }
+
+        guard sectionName != .alwaysHidden || canRevealAlwaysHiddenSection else {
+            return
+        }
+        menuBarManager.section(withName: sectionName)?.toggle(rehideAfter: rehideDelay)
     }
 
     /// Returns whether a section may be shown during command-drag rearrangement.
     func canShowSectionDuringCommandDrag(_ section: MenuBarSection) -> Bool {
-        settingsManager.revealPolicy.canShowDuringCommandDrag(section.name)
+        section.name != .alwaysHidden || canRevealAlwaysHiddenSection
     }
 
     /// Returns the sections that may appear in a control item's menu.
     func revealableSectionNamesForControlMenu() -> [MenuBarSection.Name] {
-        settingsManager.revealPolicy.contextMenuSectionNames()
+        canRevealAlwaysHiddenSection ? [.hidden, .alwaysHidden] : [.hidden]
     }
 
     /// Activates the app and sets its activation policy to the given value.
     func activate(withPolicy policy: NSApplication.ActivationPolicy) {
-        func activate() {
+        func activateCurrentApplication() {
             if let frontApp = NSWorkspace.shared.frontmostApplication {
                 NSRunningApplication.current.activate(from: frontApp)
             } else {
@@ -160,14 +170,13 @@ final class AppState: ObservableObject {
         }
 
         if hasActivated {
-            activate()
+            activateCurrentApplication()
         } else {
             hasActivated = true
             Logger.appState.debug("First time activating app, so going through Dock")
-            // Hack to make sure the app properly activates for the first time.
             NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.dock").first?.activate()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                activate()
+                activateCurrentApplication()
             }
         }
     }

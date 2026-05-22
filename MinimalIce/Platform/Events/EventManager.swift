@@ -18,6 +18,9 @@ final class EventManager {
     /// Retries hiding click-revealed sections after menu bar item menus close.
     private var clickRevealRehideTimer: Timer?
 
+    /// Retries hiding hover-revealed sections after menu bar item menus close.
+    private var hoverRevealRehideTimer: Timer?
+
     // MARK: Monitors
 
     /// Monitor for mouse down events.
@@ -36,14 +39,6 @@ final class EventManager {
             break
         }
         handlePreventShowOnHover(with: event)
-        return event
-    }
-
-    /// Monitor for mouse up events.
-    private(set) lazy var mouseUpMonitor = UniversalEventMonitor(
-        mask: .leftMouseUp
-    ) { [weak self] event in
-        self?.handleLeftMouseUp()
         return event
     }
 
@@ -69,7 +64,6 @@ final class EventManager {
     /// All monitors maintained by the app.
     private lazy var allMonitors = [
         mouseDownMonitor,
-        mouseUpMonitor,
         mouseDraggedMonitor,
         mouseMovedMonitor,
     ]
@@ -91,26 +85,27 @@ final class EventManager {
     private func configureCancellables() {
         var c = Set<AnyCancellable>()
 
-        if let appState {
-            if let hiddenSection = appState.menuBarManager.section(withName: .hidden) {
-                // In fullscreen mode, the menu bar slides down from the top on hover. Observe
-                // the frame of the hidden section's control item, which we know will always be
-                // in the menu bar, and run the show-on-hover check when it changes.
-                Publishers.CombineLatest(
-                    hiddenSection.controlItem.$windowFrame,
-                    appState.$isActiveSpaceFullscreen
-                )
-                .sink { [weak self] _, isFullscreen in
-                    guard
-                        let self,
-                        isFullscreen
-                    else {
-                        return
-                    }
-                    handleShowOnHover()
+        if
+            let appState,
+            let hiddenSection = appState.menuBarManager.section(withName: .hidden)
+        {
+            // In fullscreen mode, the menu bar slides down from the top on hover. Observe
+            // the frame of the hidden section's control item, which we know will always be
+            // in the menu bar, and run the show-on-hover check when it changes.
+            Publishers.CombineLatest(
+                hiddenSection.controlItem.$windowFrame,
+                appState.$isActiveSpaceFullscreen
+            )
+            .sink { [weak self] _, isFullscreen in
+                guard
+                    let self,
+                    isFullscreen
+                else {
+                    return
                 }
-                .store(in: &c)
+                handleShowOnHover()
             }
+            .store(in: &c)
         }
 
         cancellables = c
@@ -142,15 +137,22 @@ extension EventManager {
     private func handleShowOnClick() {
         guard
             let appState,
-            appState.settingsManager.behavior.revealsHiddenItemsOnClick,
+            appState.settingsManager.hiddenItemsActivationMode == .click,
             isMouseInsideEmptyMenuBarSpace
         else {
             return
         }
 
-        Task {
+        Task { @MainActor [weak self, weak appState] in
             // Short delay helps the toggle action feel more natural.
             try? await Task.sleep(for: .milliseconds(50))
+
+            guard
+                let self,
+                let appState
+            else {
+                return
+            }
 
             let modifierFlags = NSEvent.modifierFlags
 
@@ -180,40 +182,32 @@ extension EventManager {
     private func handlePreventShowOnHover(with event: NSEvent) {
         guard
             let appState,
-            appState.settingsManager.behavior.revealsHiddenItemsOnHover,
+            appState.settingsManager.hiddenItemsActivationMode == .hover,
             isMouseInsideMenuBar
         else {
             return
         }
 
-        if isMouseInsideMenuBarItem {
-            switch event.type {
-            case .leftMouseDown:
-                if appState.menuBarManager.sections.contains(where: { !$0.isHidden }) || isMouseInsideIceIcon {
-                    // We have a left click that is inside the menu bar while at least one
-                    // section is visible or the mouse is inside the Ice icon.
-                    appState.preventShowOnHover()
-                }
-            case .rightMouseDown:
-                if appState.menuBarManager.sections.contains(where: { !$0.isHidden }) {
-                    // We have a right click that is inside the menu bar while at least one
-                    // section is visible.
-                    appState.preventShowOnHover()
-                }
-            default:
-                break
-            }
-        } else if !isMouseInsideApplicationMenu {
-            // We have a left or right click that is inside the menu bar, outside
-            // a menu bar item, and outside the application menu, so it _must_ be
-            // inside an empty menu bar space.
-            appState.preventShowOnHover()
+        guard shouldPreventShowOnHover(for: event, appState: appState) else {
+            return
         }
+        appState.preventShowOnHover()
     }
 
-    // MARK: Handle Left Mouse Up
+    private func shouldPreventShowOnHover(for event: NSEvent, appState: AppState) -> Bool {
+        if !isMouseInsideMenuBarItem {
+            return !isMouseInsideApplicationMenu
+        }
 
-    private func handleLeftMouseUp() {
+        let hasShownSection = appState.menuBarManager.sections.contains { !$0.isHidden }
+        switch event.type {
+        case .leftMouseDown:
+            return hasShownSection || isMouseInsideIceIcon
+        case .rightMouseDown:
+            return hasShownSection
+        default:
+            return false
+        }
     }
 
     // MARK: Handle Left Mouse Dragged
@@ -233,8 +227,11 @@ extension EventManager {
                 section.hide()
                 continue
             }
-            section.controlItem.state = .showItems
+            if section.controlItem.state != .showItems {
+                section.controlItem.state = .showItems
+            }
             guard
+                section.name == .alwaysHidden,
                 section.controlItem.isSectionDivider,
                 !section.controlItem.isVisible
             else {
@@ -249,7 +246,7 @@ extension EventManager {
     private func handleHideAfterClickReveal() {
         guard
             let appState,
-            appState.settingsManager.behavior.revealsHiddenItemsOnClick
+            appState.settingsManager.hiddenItemsActivationMode == .click
         else {
             return
         }
@@ -284,6 +281,24 @@ extension EventManager {
         }
     }
 
+    private func cancelHoverRevealRehide() {
+        hoverRevealRehideTimer?.invalidate()
+        hoverRevealRehideTimer = nil
+    }
+
+    private func scheduleHoverRevealRehide() {
+        guard hoverRevealRehideTimer == nil else {
+            return
+        }
+
+        hoverRevealRehideTimer = .scheduledTimer(withTimeInterval: 0.25, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                self?.hoverRevealRehideTimer = nil
+                self?.handleShowOnHover()
+            }
+        }
+    }
+
     // MARK: Handle Show On Hover
 
     private func handleShowOnHover() {
@@ -297,7 +312,7 @@ extension EventManager {
 
         // Make sure the "ShowOnHover" feature is enabled and not prevented.
         guard
-            appState.settingsManager.behavior.revealsHiddenItemsOnHover,
+            appState.settingsManager.hiddenItemsActivationMode == .hover,
             !appState.isShowOnHoverPrevented
         else {
             return
@@ -308,24 +323,23 @@ extension EventManager {
             return
         }
 
-        Task {
+        Task { @MainActor in
             if hiddenSection.isHidden {
                 guard self.isMouseInsideHoverActivationRegion else {
                     return
                 }
-                // Make sure the mouse is still inside.
-                guard self.isMouseInsideHoverActivationRegion else {
-                    return
-                }
+                self.cancelHoverRevealRehide()
                 hiddenSection.show()
             } else {
                 guard !self.isMouseInsideMenuBar else {
+                    self.cancelHoverRevealRehide()
                     return
                 }
-                // Make sure the mouse is still outside.
-                guard !self.isMouseInsideMenuBar else {
+                guard !self.isMenuBarItemInterfaceShown else {
+                    self.scheduleHoverRevealRehide()
                     return
                 }
+                self.cancelHoverRevealRehide()
                 hiddenSection.hide()
             }
         }
@@ -429,13 +443,16 @@ extension EventManager {
     /// A Boolean value that indicates whether the mouse pointer is within
     /// the bounds of an empty space in the menu bar.
     var isMouseInsideEmptyMenuBarSpace: Bool {
-        hitTest.isInsideEmptyMenuBarSpace
+        isMouseInsideMenuBar &&
+        !isMouseInsideApplicationMenu &&
+        !isMouseInsideMenuBarItem &&
+        !isMouseInsideNotch
     }
 
     /// A Boolean value that indicates whether the mouse pointer is in a region
     /// that should activate the "Show on hover" behavior.
     var isMouseInsideHoverActivationRegion: Bool {
-        hitTest.isInsideHoverActivationRegion
+        isMouseInsideIceIcon
     }
 
     /// A Boolean value that indicates whether the mouse pointer is within
@@ -451,39 +468,9 @@ extension EventManager {
         }
         return iceIconFrame.contains(mouseLocation)
     }
-
-    private var hitTest: MenuBarHitTest {
-        MenuBarHitTest(
-            isInsideMenuBar: isMouseInsideMenuBar,
-            isInsideApplicationMenu: isMouseInsideApplicationMenu,
-            isInsideMenuBarItem: isMouseInsideMenuBarItem,
-            isInsideNotch: isMouseInsideNotch,
-            isInsideIceIcon: isMouseInsideIceIcon
-        )
-    }
 }
 
 // MARK: - Logger
 private extension Logger {
     static let eventManager = Logger(category: "EventManager")
-}
-
-/// A value snapshot of the pointer's relationship to the menu bar.
-struct MenuBarHitTest: Equatable {
-    var isInsideMenuBar: Bool
-    var isInsideApplicationMenu: Bool
-    var isInsideMenuBarItem: Bool
-    var isInsideNotch: Bool
-    var isInsideIceIcon: Bool
-
-    var isInsideEmptyMenuBarSpace: Bool {
-        isInsideMenuBar &&
-        !isInsideApplicationMenu &&
-        !isInsideMenuBarItem &&
-        !isInsideNotch
-    }
-
-    var isInsideHoverActivationRegion: Bool {
-        isInsideIceIcon
-    }
 }

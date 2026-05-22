@@ -5,6 +5,101 @@
 
 import Cocoa
 
+struct MenuBarItemInfo: Hashable, CustomStringConvertible {
+    let namespace: Namespace
+    let title: String
+
+    var isSpecial: Bool {
+        namespace == .special
+    }
+
+    var description: String {
+        namespace.rawValue + ":" + title
+    }
+
+    init(namespace: Namespace, title: String) {
+        self.namespace = namespace
+        self.title = title
+    }
+}
+
+extension MenuBarItemInfo {
+    static let immovableItems = [clock, siri, controlCenter]
+    static let nonHideableItems = [audioVideoModule, faceTime, musicRecognition]
+
+    static let iceIcon = Self(namespace: .ice, title: ControlItem.Identifier.iceIcon.rawValue)
+    static let hiddenControlItem = Self(namespace: .ice, title: ControlItem.Identifier.hidden.rawValue)
+    static let alwaysHiddenControlItem = Self(namespace: .ice, title: ControlItem.Identifier.alwaysHidden.rawValue)
+    static let clock = Self(namespace: .controlCenter, title: "Clock")
+    static let siri = Self(namespace: .systemUIServer, title: "Siri")
+    static let controlCenter = Self(namespace: .controlCenter, title: "BentoBox")
+    static let audioVideoModule = Self(namespace: .controlCenter, title: "AudioVideoModule")
+    static let faceTime = Self(namespace: .controlCenter, title: "FaceTime")
+    static let musicRecognition = Self(namespace: .controlCenter, title: "MusicRecognition")
+    static let newItems = Self(namespace: .special, title: "NewItems")
+}
+
+extension MenuBarItemInfo: Codable {
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let string = try container.decode(String.self)
+        let components = string.components(separatedBy: ":")
+        let count = components.count
+        if count > 2 {
+            self.namespace = Namespace(components[0])
+            self.title = components[1...].joined(separator: ":")
+        } else if count == 2 {
+            self.namespace = Namespace(components[0])
+            self.title = components[1]
+        } else if count == 1 {
+            self.namespace = Namespace(components[0])
+            self.title = ""
+        } else {
+            throw DecodingError.dataCorrupted(
+                DecodingError.Context(
+                    codingPath: container.codingPath,
+                    debugDescription: "Missing namespace component"
+                )
+            )
+        }
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode([namespace.rawValue, title].joined(separator: ":"))
+    }
+}
+
+extension MenuBarItemInfo {
+    struct Namespace: Hashable, RawRepresentable, CustomStringConvertible {
+        let rawValue: String
+
+        var description: String {
+            rawValue
+        }
+
+        init(rawValue: String) {
+            self.rawValue = rawValue
+        }
+
+        init(_ rawValue: String) {
+            self.init(rawValue: rawValue)
+        }
+
+        init(_ value: String?) {
+            self = value.map { Self($0) } ?? .null
+        }
+    }
+}
+
+extension MenuBarItemInfo.Namespace {
+    static let ice = Self(Constants.bundleIdentifier)
+    static let controlCenter = Self("com.apple.controlcenter")
+    static let systemUIServer = Self("com.apple.systemuiserver")
+    static let special = Self("Special")
+    static let null = Self("<null>")
+}
+
 // MARK: - MenuBarItem
 
 /// A representation of an item in the menu bar.
@@ -66,51 +161,19 @@ struct MenuBarItem {
     /// A name associated with the item that is suited for display to
     /// the user.
     var displayName: String {
-        var fallback: String { "Unknown" }
         guard let owningApplication else {
-            return ownerName ?? title ?? fallback
-        }
-        var bestName: String {
-            owningApplication.localizedName ??
-            ownerName ??
-            owningApplication.bundleIdentifier ??
-            fallback
+            return ownerName ?? title ?? Self.unknownDisplayName
         }
         guard let title else {
-            return bestName
+            return bestDisplayName(for: owningApplication)
         }
-        // by default, use the application name, but handle a few special cases
-        return switch MenuBarItemInfo.Namespace(owningApplication.bundleIdentifier) {
-        case .controlCenter:
-            switch title {
-            case "AccessibilityShortcuts": "Accessibility Shortcuts"
-            case "BentoBox": bestName // Control Center
-            case "FocusModes": "Focus"
-            case "KeyboardBrightness": "Keyboard Brightness"
-            case "MusicRecognition": "Music Recognition"
-            case "NowPlaying": "Now Playing"
-            case "ScreenMirroring": "Screen Mirroring"
-            case "StageManager": "Stage Manager"
-            case "UserSwitcher": "Fast User Switching"
-            case "WiFi": "Wi-Fi"
-            default: title
-            }
-        case .systemUIServer:
-            switch title {
-            case "TimeMachine.TMMenuExtraHost"/*Sonoma*/, "TimeMachineMenuExtra.TMMenuExtraHost"/*Sequoia*/: "Time Machine"
-            default: title
-            }
-        case MenuBarItemInfo.Namespace("com.apple.Passwords.MenuBarExtra"): "Passwords"
-        default:
-            bestName
-        }
+        return displayName(for: title, ownedBy: owningApplication)
     }
 
     /// A Boolean value that indicates whether the item is currently
     /// in the menu bar.
     var isCurrentlyInMenuBar: Bool {
-        let list = Set(WindowServerAdapter.windowList(option: .menuBarItems))
-        return list.contains(windowID)
+        WindowServerAdapter.menuBarItemWindowIDs.contains(windowID)
     }
 
     /// A string to use for logging purposes.
@@ -159,8 +222,56 @@ struct MenuBarItem {
 }
 
 private extension MenuBarItem {
+    static let unknownDisplayName = "Unknown"
     static let immovableItems = Set(MenuBarItemInfo.immovableItems)
     static let nonHideableItems = Set(MenuBarItemInfo.nonHideableItems)
+
+    func bestDisplayName(for application: NSRunningApplication) -> String {
+        application.localizedName ??
+        ownerName ??
+        application.bundleIdentifier ??
+        Self.unknownDisplayName
+    }
+
+    func displayName(for title: String, ownedBy application: NSRunningApplication) -> String {
+        let bestName = bestDisplayName(for: application)
+
+        return switch MenuBarItemInfo.Namespace(application.bundleIdentifier) {
+        case .controlCenter:
+            controlCenterDisplayName(for: title, fallback: bestName)
+        case .systemUIServer:
+            systemUIServerDisplayName(for: title)
+        case MenuBarItemInfo.Namespace("com.apple.Passwords.MenuBarExtra"):
+            "Passwords"
+        default:
+            bestName
+        }
+    }
+
+    func controlCenterDisplayName(for title: String, fallback: String) -> String {
+        switch title {
+        case "AccessibilityShortcuts": "Accessibility Shortcuts"
+        case "BentoBox": fallback
+        case "FocusModes": "Focus"
+        case "KeyboardBrightness": "Keyboard Brightness"
+        case "MusicRecognition": "Music Recognition"
+        case "NowPlaying": "Now Playing"
+        case "ScreenMirroring": "Screen Mirroring"
+        case "StageManager": "Stage Manager"
+        case "UserSwitcher": "Fast User Switching"
+        case "WiFi": "Wi-Fi"
+        default: title
+        }
+    }
+
+    func systemUIServerDisplayName(for title: String) -> String {
+        switch title {
+        case "TimeMachine.TMMenuExtraHost", "TimeMachineMenuExtra.TMMenuExtraHost":
+            "Time Machine"
+        default:
+            title
+        }
+    }
 }
 
 // MARK: MenuBarItem Getters
@@ -175,34 +286,14 @@ extension MenuBarItem {
     ///   - activeSpaceOnly: A Boolean value that indicates whether only the menu bar items
     ///     that are on the active space should be returned.
     static func getMenuBarItems(on display: CGDirectDisplayID? = nil, onScreenOnly: Bool, activeSpaceOnly: Bool) -> [MenuBarItem] {
-        var option: Bridging.WindowListOption = [.menuBarItems]
-
-        var titlePredicate: (MenuBarItem) -> Bool = { _ in true }
-        var boundsPredicate: (CGWindowID) -> Bool = { _ in true }
-
-        if onScreenOnly {
-            option.insert(.onScreen)
-        }
-        if activeSpaceOnly {
-            option.insert(.activeSpace)
-            titlePredicate = { $0.title != "" }
-        }
-        if let display {
-            let displayBounds = CGDisplayBounds(display)
-            boundsPredicate = { windowID in
-                guard let windowFrame = WindowServerAdapter.windowFrame(for: windowID) else {
-                    return false
-                }
-                return displayBounds.intersects(windowFrame)
-            }
-        }
-
-        return WindowServerAdapter.windowList(option: option).lazy
-            .filter(boundsPredicate)
-            .compactMap { windowID in
-                MenuBarItem(windowID: windowID)
-            }
-            .filter(titlePredicate)
+        return WindowServerAdapter.menuBarItemWindows(
+            on: display,
+            onScreenOnly: onScreenOnly,
+            activeSpaceOnly: activeSpaceOnly
+        )
+            .lazy
+            .compactMap(MenuBarItem.init(itemWindow:))
+            .filter { !activeSpaceOnly || $0.title != "" }
             .sortedByOrderInMenuBar()
     }
 }

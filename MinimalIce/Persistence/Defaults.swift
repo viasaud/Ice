@@ -84,37 +84,35 @@ extension Defaults {
     }
 }
 
-enum StatusItemDefaults {
-    static subscript<Value>(key: Key<Value>, autosaveName: String) -> Value? {
-        get {
-            UserDefaults.standard.object(forKey: key.stringKey(for: autosaveName)) as? Value
-        }
-        set {
-            UserDefaults.standard.set(newValue, forKey: key.stringKey(for: autosaveName))
-        }
+extension Defaults {
+    static func statusItemPreferredPosition(for autosaveName: String) -> CGFloat? {
+        UserDefaults.standard.object(forKey: statusItemKey("Preferred Position", autosaveName)) as? CGFloat
     }
 
-    static func migrate<Value>(key: Key<Value>, from oldAutosaveName: String, to newAutosaveName: String) {
+    static func setStatusItemPreferredPosition(_ value: CGFloat?, for autosaveName: String) {
+        UserDefaults.standard.set(value, forKey: statusItemKey("Preferred Position", autosaveName))
+    }
+
+    static func statusItemVisible(for autosaveName: String) -> Bool? {
+        UserDefaults.standard.object(forKey: statusItemKey("Visible", autosaveName)) as? Bool
+    }
+
+    static func setStatusItemVisible(_ value: Bool?, for autosaveName: String) {
+        UserDefaults.standard.set(value, forKey: statusItemKey("Visible", autosaveName))
+    }
+
+    static func migrateStatusItemValue(named name: String, from oldAutosaveName: String, to newAutosaveName: String) {
         guard newAutosaveName != oldAutosaveName else {
             return
         }
-        Self[key, newAutosaveName] = Self[key, oldAutosaveName]
-        Self[key, oldAutosaveName] = nil
+        UserDefaults.standard.set(
+            UserDefaults.standard.object(forKey: statusItemKey(name, oldAutosaveName)),
+            forKey: statusItemKey(name, newAutosaveName)
+        )
+        UserDefaults.standard.set(nil, forKey: statusItemKey(name, oldAutosaveName))
     }
 
-    struct Key<Value> {
-        let rawValue: String
-
-        func stringKey(for autosaveName: String) -> String {
-            "NSStatusItem \(rawValue) \(autosaveName)"
-        }
+    private static func statusItemKey(_ name: String, _ autosaveName: String) -> String {
+        "NSStatusItem \(name) \(autosaveName)"
     }
-}
-
-extension StatusItemDefaults.Key<CGFloat> {
-    static let preferredPosition = Self(rawValue: "Preferred Position")
-}
-
-extension StatusItemDefaults.Key<Bool> {
-    static let visible = Self(rawValue: "Visible")
 }

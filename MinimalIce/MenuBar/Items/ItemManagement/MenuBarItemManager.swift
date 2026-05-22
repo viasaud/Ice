@@ -18,6 +18,13 @@ final class MenuBarItemManager: ObservableObject {
     /// Storage for internal observers.
     private var cancellables = Set<AnyCancellable>()
 
+    /// The current menu bar item cache refresh task, if one is running.
+    private var cacheRefreshTask: Task<Void, Never>?
+
+    /// A Boolean value that indicates whether another cache refresh was requested
+    /// while the current refresh task was running.
+    private var isCacheRefreshPending = false
+
     /// Cached window identifiers for the most recent items.
     var cachedItemWindowIDs = [CGWindowID]()
 
@@ -113,9 +120,7 @@ final class MenuBarItemManager: ObservableObject {
                 guard let self else {
                     return
                 }
-                Task {
-                    await self.cacheItemsIfNeeded()
-                }
+                requestItemCacheRefresh()
             }
             .store(in: &c)
 
@@ -125,9 +130,7 @@ final class MenuBarItemManager: ObservableObject {
                 guard let self else {
                     return
                 }
-                Task {
-                    await self.cacheItemsIfNeeded()
-                }
+                requestItemCacheRefresh()
             }
             .store(in: &c)
 
@@ -154,6 +157,27 @@ final class MenuBarItemManager: ObservableObject {
         .store(in: &c)
 
         cancellables = c
+    }
+
+    private func requestItemCacheRefresh() {
+        guard cacheRefreshTask == nil else {
+            isCacheRefreshPending = true
+            return
+        }
+
+        isCacheRefreshPending = true
+        cacheRefreshTask = Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+
+            repeat {
+                isCacheRefreshPending = false
+                await cacheItemsIfNeeded()
+            } while isCacheRefreshPending
+
+            cacheRefreshTask = nil
+        }
     }
 }
 
