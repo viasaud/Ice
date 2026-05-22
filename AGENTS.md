@@ -40,15 +40,23 @@ This repository uses Xcode file-system-synchronized groups. The filesystem under
 - Keep the Xcode project bundle and scheme named `MinimalIce`; the user-facing
   app name is `Minimal Ice`.
 - Keep the app lightweight, native, fast, minimal, and personal-use focused.
-- Avoid public distribution surfaces, update flows, telemetry, analytics,
-  donation/support links, release infrastructure, funding metadata, and
-  issue-template ceremony.
+- Avoid telemetry, analytics, donation/support links, funding metadata, and
+  issue-template ceremony. GitHub Releases plus the Sparkle appcast are the
+  only public distribution/update surfaces for this fork.
 - Keep the GPL-3 license file because this remains a derivative fork.
 - Accessibility is required for core menu bar management. Normal operation
   should not require Screen & System Audio Recording permission.
 - Local builds are ad-hoc signed on this machine.
 - SwiftLint is not part of this fork's current toolchain.
 - Build with `xcodebuild -project MinimalIce.xcodeproj -scheme MinimalIce -configuration Debug build`.
+- Treat `AGENTS.md` as the source of truth for repo-specific coding and release
+  rules. Update it proactively whenever the user gives a durable preference or
+  workflow rule; do not wait for an explicit request.
+- App versions use `year.month.commitNumber`, for example `26.5.14`.
+  Increment the commit number for every commit in the same month. When the
+  month changes, reset the commit number to `0`, for example `26.6.0`.
+  Keep `MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`, and `appcast.xml`
+  aligned before committing release-affecting changes.
 
 ## Simplified Architecture
 
