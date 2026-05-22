@@ -1,190 +1,121 @@
 # Minimal Ice Agent Guide
 
-This repository uses Xcode file-system-synchronized groups. The filesystem under
-`MinimalIce/` is the source map for both Xcode and coding agents.
+This is a personal, minimal macOS menu bar utility. Keep it native, fast,
+private, and small.
 
-## Source Map
+## Non-Negotiables
 
-- `MinimalIce/App/Bootstrap`: SwiftUI app entry point plus the app delegate and
-  permission-gated launch flow. Keep bootstrap in `MinimalIceApp.swift` unless
-  it becomes substantially more complex.
-- `MinimalIce/App/State`: app-wide state composition.
-- `MinimalIce/MenuBar`: core menu bar orchestration.
-- `MinimalIce/MenuBar/Sections`: visible, hidden, and always-hidden section
-  models.
-- `MinimalIce/MenuBar/ControlItems`: Minimal Ice-owned status items used to
-  control or delimit sections. Built-in chevron drawing stays local to
-  `ControlItem`.
-- `MinimalIce/MenuBar/Items`: menu bar item identity, window snapshots, image
-  caching, and item discovery.
-- `MinimalIce/MenuBar/Items/ItemManagement`: item cache refresh, CGEvent
-  routing, movement, clicking, temporary reveal, rehide behavior, and section
-  classification.
-- `MinimalIce/Settings/State`: the single settings manager. There is no
-  separate settings UI in this fork.
-- `MinimalIce/Permissions`: Accessibility-only permission checking.
-- `MinimalIce/Platform`: AppKit event monitoring, WindowServer adapters,
-  private CoreGraphics bridging, and platform shims.
-- `MinimalIce/Persistence`: defaults, status-item defaults, and migrations.
-- `MinimalIce/Runtime`: logging, bundle constants, extensions, and runtime
-  shims.
-- `MinimalIce/Shared`: small reusable helpers with no feature ownership.
-- `MinimalIce/Supporting`: assets, plist, and entitlements.
+- Preserve bundle identifier `com.personal.Ice`.
+- Keep the Xcode project and scheme named `MinimalIce`; the app name is
+  `Minimal Ice`.
+- Accessibility is the only required permission. Do not add Screen & System
+  Audio Recording, telemetry, analytics, donation links, support flows, or
+  issue-template ceremony.
+- Keep GPL-3.0.
+- Do not push unless the user explicitly asks.
+- Use `xcodebuild -project MinimalIce.xcodeproj -scheme MinimalIce -configuration Debug build`
+  for normal verification.
+- SwiftLint is not part of this fork.
 
-## Working Rules
+## Product Shape
 
-- Keep feature-specific policies inside the owning feature unless another
-  feature already has a concrete caller.
-- Preserve `com.personal.Ice` unless the user explicitly asks for a bundle
-  identity migration.
-- Keep the Xcode project bundle and scheme named `MinimalIce`; the user-facing
-  app name is `Minimal Ice`.
-- Keep the app lightweight, native, fast, minimal, and personal-use focused.
-- Avoid telemetry, analytics, donation/support links, funding metadata, and
-  issue-template ceremony. GitHub Releases plus the Sparkle appcast are the
-  only public distribution/update surfaces for this fork.
-- Keep the GPL-3 license file because this remains a derivative fork.
-- Accessibility is required for core menu bar management. Normal operation
-  should not require Screen & System Audio Recording permission.
-- Local builds are ad-hoc signed on this machine.
-- SwiftLint is not part of this fork's current toolchain.
-- Build with `xcodebuild -project MinimalIce.xcodeproj -scheme MinimalIce -configuration Debug build`.
-- Treat `AGENTS.md` as the source of truth for repo-specific coding and release
-  rules. Update it proactively whenever the user gives a durable preference or
-  workflow rule; do not wait for an explicit request.
-- App versions use `year.month.commitNumber`, for example `26.5.14`.
-  Increment the commit number for every commit in the same month. When the
-  month changes, reset the commit number to `0`, for example `26.6.0`.
-  Keep `MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`, and `appcast.xml`
-  aligned before committing release-affecting changes.
-- Before every push, verify whether the pushed commits require a version bump
-  and appcast/release update. If they do, update `MARKETING_VERSION`,
-  `CURRENT_PROJECT_VERSION`, `appcast.xml`, the matching GitHub Release, and the
-  release zip asset before calling the push complete.
-- For every pushed commit that updates `appcast.xml`, also create or update the
-  matching GitHub Release and upload the exact zip referenced by the appcast
-  enclosure. Verify both the appcast URL and the release asset URL return
-  successfully before calling the work done.
+- User-facing layout:
+  `always hidden < hidden < always visible`
+- The right chevron is the interactive Minimal Ice icon.
+- The optional left chevron is the always-hidden divider and uses the same large
+  chevron artwork.
+- Do not show a middle visible-section chevron. The old visible section is an
+  internal compatibility detail only.
+- Hidden items reveal on hover by default. Hover reveal starts only over the
+  interactive chevron and should not collapse while a revealed item's menu or
+  popover is open.
+- Show all relevant sections while Command-dragging menu bar items.
+- Settings stay single-page, minimal, dark, and content-height fitting.
+- The About row stays one line: app name and version.
 
-## Simplified Architecture
+## Code Map
 
-- Prefer fewer files and fewer shallow modules. If a type has one concrete
-  caller and no independent lifecycle, keep it beside that caller.
-- Do not recreate deleted wrapper files such as `AppLifecycleCoordinator`,
-  generic `Permission`, `GeneralSettingsManager`, `AdvancedSettingsManager`,
-  `MenuBarRevealPolicy`, `MenuBarHitTest`, `MenuBarSectionLayout`,
-  `MenuItemIcon`, `ControlItemImage`, `StatusItemDefaults`,
-  `BindingExposable`, `IceSlider`, `SettingsCard`, or `ObjectStorage`.
-- Keep settings as one `SettingsManager`. If a new setting is needed, add the
-  stored value, defaults persistence, and behavior projection there unless a
-  real second owner appears.
-- Keep permissions Accessibility-only. Do not add a generic permission model or
-  permissions settings UI unless the product truly needs another required
-  permission.
-- Keep event monitoring in the unified monitor file unless a monitor has a
-  genuinely different mechanism, such as the run-loop local event observer.
+- `MinimalIce/App`: app entry, delegate, and app-wide state.
+- `MinimalIce/MenuBar`: section orchestration, control items, menu bar item
+  identity, caching, movement, reveal, clicking, and rehide behavior.
+- `MinimalIce/Settings/State`: the single `SettingsManager`.
+- `MinimalIce/Permissions`: Accessibility-only permission checks.
+- `MinimalIce/Platform`: event monitoring, WindowServer adapters, private
+  CoreGraphics bridges, and platform shims.
+- `MinimalIce/Persistence`: defaults and migrations.
+- `MinimalIce/Runtime`: logging, constants, extensions, runtime helpers.
+- `MinimalIce/Supporting`: assets, plist, entitlements.
+
+## Architecture Rules
+
+- Prefer fewer files. If a type has one caller and no independent lifecycle,
+  keep it with that caller.
+- Keep settings in `SettingsManager` unless a real second owner appears.
+- Keep permissions Accessibility-only; no generic permission model or settings
+  permissions UI.
+- Keep event monitoring unified unless a monitor has a genuinely different
+  mechanism.
 - Keep right-click/control-item menu construction owned by `MenuBarManager`.
-  Control items should ask the menu bar manager for menus instead of building
-  duplicate menus.
-- Do not weaken Swift concurrency to simplify code: preserve `@MainActor`
-  isolation for app state, settings, permissions, menu bar orchestration,
-  control items, and event handling; avoid new `nonisolated(unsafe)` unless it
-  is replacing an existing necessary bridge.
+- Preserve `@MainActor` isolation for app state, settings, permissions, menu bar
+  orchestration, control items, and event handling.
+- Do not recreate deleted wrapper/helper files such as
+  `AppLifecycleCoordinator`, generic `Permission`, `GeneralSettingsManager`,
+  `AdvancedSettingsManager`, `MenuBarRevealPolicy`, `MenuBarHitTest`,
+  `MenuBarSectionLayout`, `MenuItemIcon`, `ControlItemImage`,
+  `StatusItemDefaults`, `BindingExposable`, `IceSlider`, `SettingsCard`,
+  `ObjectStorage`, or similar shallow indirection.
 
-## Domain Language
-
-- Menu bar item: a status item window owned by an app or by macOS that can
-  appear in the system menu bar.
-- Control item: a Minimal Ice-owned menu bar item used to control or delimit a
-  section.
-- Visible section: an internal compatibility section for items to the right of
-  the interactive chevron. Do not expose a separate visible-section divider in
-  the menu bar.
-- Hidden section: the revealable area between the always-hidden section control
-  item and the interactive chevron.
-- Always-hidden section: the more restricted section to the left of the
-  always-hidden control item.
-- Reveal: a user action that temporarily shows a hidden section.
-- Temporary reveal: moving one hidden menu bar item into visible space long
-  enough to optionally click it, then returning it to its original section.
-- Permission check: the startup flow that blocks normal app setup until
-  Accessibility permission is granted.
-- Settings window: the single-page macOS 26 settings interface.
-
-## Removed Surface Area
+## Removed Features
 
 Do not reintroduce Ice Bar, Show on Scroll, hotkeys, multi-pane settings, public
-update flows, Menu Bar Appearance, Menu Bar Layout, visual LayoutBar previews,
-custom control-item icon importing, old Dot/Ellipsis/Ice Cube assets, or public
-support flows.
+update UI, Menu Bar Appearance, Menu Bar Layout, LayoutBar previews, custom
+control-item icon importing, old Dot/Ellipsis/Ice Cube assets, or public support
+flows.
 
-## Current Product Decisions
+## App Icon
 
-- The Minimal Ice icon is always the built-in Chevron.
-- Settings are intentionally minimal, dark, content-height fitting, and
-  single-page.
-- The About section stays one line: app name and version.
-- Do not expose permissions as a settings section; open the permissions window
-  automatically when required Accessibility permission is missing.
-- Accessibility permission detection should rely on
-  `AXIsProcessTrustedWithOptions`.
-- Hidden items reveal on hover by default. Hover reveal activates instantly only
-  when the pointer is over the chevron and hides immediately when the pointer
-  leaves the menu bar, unless a revealed item's menu or popover is open.
-- Do not show the middle visible-section chevron. The menu bar should expose
-  only the interactive chevron and, when enabled, the always-hidden divider; the
-  always-hidden divider uses the same large chevron artwork as the interactive
-  chevron.
-- The user-facing menu bar layout is
-  `always hidden < hidden < always visible`. The old visible section remains an
-  implementation detail only.
-- Showing all sections while command-dragging menu bar items is always enabled.
+- Source of truth:
+  `MinimalIce/Supporting/Assets.xcassets/AppIcon.appiconset/`
+- The icon is cube artwork on an opaque black square background.
+- Do not use transparent-corner variants, cube-only small slots, or
+  `MinimalIce/Supporting/AppIcon.icon`.
+- If icon work is requested, verify with a Debug build, install to
+  `/Applications/Minimal Ice.app`, inspect the extracted `.icns`, and confirm
+  edge/corner pixels are opaque black.
 
-## App Icon Notes
+## Version And Release
 
-- The correct app icon artwork is cube artwork on an opaque black square
-  background, with the generated rounded-square/card rim removed from the PNG
-  artwork.
-- Do not use the previous transparent-corner version or cube-only small icon
-  slots. Those made the System Settings icon look worse.
-- Do not add `MinimalIce/Supporting/AppIcon.icon` from Icon Composer for this
-  icon. Icon Composer/macOS 26 adds its own glossy rounded enclosure and made
-  the border more obvious in previews.
-- The source of truth remains
-  `MinimalIce/Supporting/Assets.xcassets/AppIcon.appiconset/`.
-- The final generation approach was:
-  - Start from the good generated image under
-    `$HOME/.codex/generated_images/.../ig_0b75acd7c94bb234016a0e0d386b0881918c986a01641fff6d.png`.
-  - Extract/preserve the cube and its glow.
-  - Explicitly remove the generated outer app-card/rim from the image.
-  - Composite the cube over an opaque black 1024x1024 background.
-  - Export all native macOS app icon slots from 16px through 1024px.
-- Verification used:
-  - `xcodebuild -project MinimalIce.xcodeproj -scheme MinimalIce -configuration Debug build`
-  - Install to `/Applications/Minimal Ice.app`.
-  - Extract `/Applications/Minimal Ice.app/Contents/Resources/AppIcon.icns`
-    with `iconutil -c iconset`.
-  - Check extracted icon edge/corner pixels are opaque black, not gray and not
-    transparent.
-  - Render `/Applications/Minimal Ice.app` via
-    `NSWorkspace.shared.icon(forFile:)` to see what System Settings/Finder-style
-    APIs receive.
-- Important finding: after the artwork rim is removed, any remaining
-  rounded/glossy border visible in System Settings is macOS 26's
-  system-rendered app icon enclosure, not a border baked into the icon assets.
+- Version format is `year.month.commitNumber`, for example `26.5.21`.
+- Increment the commit number for every pushed commit in the same month. When
+  the month changes, reset to `0`.
+- Before every push, update all release metadata:
+  `MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`, `appcast.xml`, GitHub Release,
+  and the release zip asset.
+- `CURRENT_PROJECT_VERSION` is numeric `yearmonthcommit`, for example
+  `260521`.
+- Every appcast update must have a matching GitHub Release and the exact zip
+  referenced by the appcast enclosure.
+- Verify before calling a push/release done:
+  - Release build succeeds.
+  - Sparkle signature verifies.
+  - Raw appcast URL returns the new version.
+  - Release asset URL returns `200` and the byte size matches `appcast.xml`.
 
-## Local Workflow
+## Local Commands
 
-- Do not push to GitHub unless explicitly asked.
-- Keep changes local until the user asks to commit or push.
-- Install test builds into `/Applications/Minimal Ice.app` when asked.
-- Release builds:
+Debug build:
+
+```sh
+xcodebuild -project MinimalIce.xcodeproj -scheme MinimalIce -configuration Debug build
+```
+
+Release build:
 
 ```sh
 xcodebuild -project MinimalIce.xcodeproj -scheme MinimalIce -configuration Release build
 ```
 
-- Reinstall the Release build:
+Install current Release build:
 
 ```sh
 osascript -e 'tell application "Minimal Ice" to quit' || true

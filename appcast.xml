@@ -3,12 +3,12 @@
     <channel>
         <title>Minimal Ice</title>
         <item>
-            <title>26.5.21</title>
-            <pubDate>Fri, 22 May 2026 15:06:04 +0300</pubDate>
-            <sparkle:version>260521</sparkle:version>
-            <sparkle:shortVersionString>26.5.21</sparkle:shortVersionString>
+            <title>26.5.22</title>
+            <pubDate>Fri, 22 May 2026 15:14:11 +0300</pubDate>
+            <sparkle:version>260522</sparkle:version>
+            <sparkle:shortVersionString>26.5.22</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/viasaud/Minimal-Ice/releases/download/v26.5.21/Minimal-Ice-26.5.21.zip" length="5646261" type="application/octet-stream" sparkle:edSignature="fud5+bah4vz439tvNlK8uudPJBm11axaBqVTiGab+Ajjm2OuL0i8s5XSAQCBhBLTK0XU92/L/xViFTWOHnGPCw=="/>
+            <enclosure url="https://github.com/viasaud/Minimal-Ice/releases/download/v26.5.22/Minimal-Ice-26.5.22.zip" length="5646261" type="application/octet-stream" sparkle:edSignature="McTcmfo0CeG0mbuoQuzBKV0OqI/w9UsvpmogaFavyYt8ANek4Oc3miDvdeMkPFpKFni7Cx7W+wJrlRGRpIz1Cg=="/>
         </item>
     </channel>
 </rss>
