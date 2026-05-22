@@ -275,7 +275,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 260524;
+				CURRENT_PROJECT_VERSION = 26.5;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -291,7 +291,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 26.5.24;
+				MARKETING_VERSION = 26.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.personal.Ice;
 				PRODUCT_NAME = "Minimal Ice";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -308,7 +308,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 260524;
+				CURRENT_PROJECT_VERSION = 26.5;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -324,7 +324,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 26.5.24;
+				MARKETING_VERSION = 26.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.personal.Ice;
 				PRODUCT_NAME = "Minimal Ice";
 				SWIFT_EMIT_LOC_STRINGS = YES;
