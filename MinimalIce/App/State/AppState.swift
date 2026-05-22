@@ -4,7 +4,6 @@
 //
 
 import Combine
-import Sparkle
 import SwiftUI
 
 /// The model for app-wide state.
@@ -27,13 +26,6 @@ final class AppState: ObservableObject {
 
     /// Manager for the app's settings.
     private(set) lazy var settingsManager = SettingsManager(appState: self)
-
-    /// Controller for Sparkle update checks.
-    private(set) lazy var updaterController = SPUStandardUpdaterController(
-        startingUpdater: true,
-        updaterDelegate: nil,
-        userDriverDelegate: nil
-    )
 
     /// A Boolean value that indicates whether the "ShowOnHover" feature is prevented.
     private(set) var isShowOnHoverPrevented = false
@@ -125,7 +117,6 @@ final class AppState: ObservableObject {
         permissionsManager.stopAllChecks()
         menuBarManager.performSetup()
         eventManager.performSetup()
-        _ = updaterController
         itemManager.performSetup()
     }
 

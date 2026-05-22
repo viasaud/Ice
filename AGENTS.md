@@ -68,9 +68,9 @@ private, and small.
 ## Removed Features
 
 Do not reintroduce Ice Bar, Show on Scroll, hotkeys, multi-pane settings, public
-update UI, Menu Bar Appearance, Menu Bar Layout, LayoutBar previews, custom
-control-item icon importing, old Dot/Ellipsis/Ice Cube assets, or public support
-flows.
+update UI, auto-updaters, Menu Bar Appearance, Menu Bar Layout, LayoutBar
+previews, custom control-item icon importing, old Dot/Ellipsis/Ice Cube assets,
+or public support flows.
 
 ## App Icon
 
@@ -88,24 +88,16 @@ flows.
 - Version format is `year.month.commitNumber`, for example `26.5.21`.
 - Increment the commit number for every pushed commit in the same month. When
   the month changes, reset to `0`.
-- Before every push, update all release metadata:
-  `MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`, `appcast.xml`, GitHub Release,
-  and the release zip asset.
+- Before every push, update `MARKETING_VERSION` and
+  `CURRENT_PROJECT_VERSION`.
 - `CURRENT_PROJECT_VERSION` is numeric `yearmonthcommit`, for example
   `260521`.
-- Every appcast update must have a matching GitHub Release and the exact zip
-  referenced by the appcast enclosure.
-- GitHub Release notes should be comprehensive enough for an end user to
-  understand what changed, how to install, and what privacy/permission behavior
-  to expect. Do not use placeholder one-line release bodies.
-- Keep only the current public GitHub Release when asked to clean releases.
-  Delete old GitHub Release entries/assets, but do not delete underlying git
-  tags unless the user explicitly asks.
-- Verify before calling a push/release done:
-  - Release build succeeds.
-  - Sparkle signature verifies.
-  - Raw appcast URL returns the new version.
-  - Release asset URL returns `200` and the byte size matches `appcast.xml`.
+- Distribution is source-only unless the user explicitly decides to use
+  Developer ID signing and notarization. Do not publish ad-hoc signed app zips.
+- GitHub Release notes, when used, should ask users to build from source and
+  explain that prebuilt app zips are not provided because this fork is not
+  Developer ID signed or notarized.
+- Verify before calling a push/release done that the Release build succeeds.
 
 ## Local Commands
 

@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/viasaud/Minimal-Ice/releases/latest">Download</a>
+  <a href="#build-from-source">Build from source</a>
   ·
   <a href="LICENSE">License</a>
 </p>
@@ -32,19 +32,32 @@ It is native, lightweight, and private by design.
 - Rearrange items with the familiar Command-drag gesture.
 - Run locally with no accounts, analytics, ads, or cloud service.
 
-## Setup
+## Build From Source
 
-Download the latest release, open **Minimal Ice**, and grant Accessibility
-permission when macOS asks. Minimal Ice needs Accessibility access to read and
-rearrange menu bar items.
+Minimal Ice is source-distributed. Clone the repository, build it locally, and
+install the app you built:
 
-If macOS blocks the first launch, right-click **Minimal Ice.app** and choose
-**Open**.
+```sh
+git clone https://github.com/viasaud/Minimal-Ice.git
+cd Minimal-Ice
+xcodebuild -project MinimalIce.xcodeproj -scheme MinimalIce -configuration Release build
+release_products_dir="$(xcodebuild -project MinimalIce.xcodeproj -scheme MinimalIce -configuration Release -showBuildSettings | awk -F ' = ' '/TARGET_BUILD_DIR/ { print $2; exit }')"
+ditto "$release_products_dir/Minimal Ice.app" "/Applications/Minimal Ice.app"
+open "/Applications/Minimal Ice.app"
+```
+
+Grant Accessibility permission when macOS asks. Minimal Ice needs Accessibility
+access to read and rearrange menu bar items.
+
+Prebuilt release zips are not provided because this fork is not Developer ID
+signed or notarized. Building from source avoids asking users to bypass
+Gatekeeper for a downloaded app.
 
 ## Privacy
 
 Minimal Ice works on your Mac. It does not collect analytics, track usage, show
-ads, or require a network connection for normal menu bar management.
+ads, auto-update, or require a network connection for normal menu bar
+management.
 
 ## License
 

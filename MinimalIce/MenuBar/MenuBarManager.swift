@@ -6,7 +6,6 @@
 @preconcurrency import AXSwift
 import Combine
 import LaunchAtLogin
-import Sparkle
 import SwiftUI
 
 /// Manager for the state of the menu bar.
@@ -229,15 +228,6 @@ final class MenuBarManager: ObservableObject {
         menu.addItem(launchAtLoginItem)
 
         menu.addItem(.separator())
-
-        let checkForUpdatesItem = NSMenuItem(
-            title: "Check for Updates...",
-            action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)),
-            keyEquivalent: ""
-        )
-        checkForUpdatesItem.image = .menuIcon("arrow.triangle.2.circlepath")
-        checkForUpdatesItem.target = appState?.updaterController
-        menu.addItem(checkForUpdatesItem)
 
         let versionItem = NSMenuItem(
             title: "Minimal Ice \(Constants.versionString)",
