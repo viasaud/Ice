@@ -85,13 +85,10 @@ or public support flows.
 
 ## Version And Release
 
-- Version format is `year.month.commitNumber`, for example `26.5.21`.
-- Increment the commit number for every pushed commit in the same month. When
-  the month changes, reset to `0`.
+- Version format is `year.month`, for example `26.5`. Do not add a build or
+  commit number to the user-facing version.
 - Before every push, update `MARKETING_VERSION` and
-  `CURRENT_PROJECT_VERSION`.
-- `CURRENT_PROJECT_VERSION` is numeric `yearmonthcommit`, for example
-  `260521`.
+  `CURRENT_PROJECT_VERSION` to the same `year.month` value.
 - Distribution is source-only unless the user explicitly decides to use
   Developer ID signing and notarization. Do not publish ad-hoc signed app zips.
 - GitHub Release notes, when used, should ask users to build from source and
