@@ -122,21 +122,20 @@ final class AppState: ObservableObject {
 
     /// Toggles the appropriate menu bar section for the current modifier flags.
     func toggleMenuBarSection(using modifierFlags: NSEvent.ModifierFlags, preferredSection: MenuBarSection? = nil) {
-        let rehideDelay = settingsManager.hiddenItemsActivationMode == .click ? nil : settingsManager.tempShowInterval
         let sectionName = preferredSection?.name ?? .hidden
 
         if modifierFlags.contains(.option) {
             guard canRevealAlwaysHiddenSection else {
                 return
             }
-            menuBarManager.section(withName: .alwaysHidden)?.toggle(rehideAfter: rehideDelay)
+            menuBarManager.section(withName: .alwaysHidden)?.toggle()
             return
         }
 
         guard sectionName != .alwaysHidden || canRevealAlwaysHiddenSection else {
             return
         }
-        menuBarManager.section(withName: sectionName)?.toggle(rehideAfter: rehideDelay)
+        menuBarManager.section(withName: sectionName)?.toggle()
     }
 
     /// Returns whether a section may be shown during command-drag rearrangement.

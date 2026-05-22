@@ -21,6 +21,8 @@ final class EventManager {
     /// Retries hiding hover-revealed sections after menu bar item menus close.
     private var hoverRevealRehideTimer: Timer?
 
+    private static let clickRevealRehideRetryInterval: TimeInterval = 0.25
+
     // MARK: Monitors
 
     /// Monitor for mouse down events.
@@ -248,37 +250,69 @@ extension EventManager {
             let appState,
             appState.settingsManager.hiddenItemsActivationMode == .click
         else {
+            cancelClickRevealRehide()
+            return
+        }
+
+        guard hasClickRevealedSection(in: appState) else {
+            cancelClickRevealRehide()
             return
         }
 
         guard !isMouseInsideMenuBar else {
-            clickRevealRehideTimer?.invalidate()
-            clickRevealRehideTimer = nil
+            cancelClickRevealRehide()
+            return
+        }
+
+        scheduleClickRevealRehide(after: appState.settingsManager.tempShowInterval)
+    }
+
+    private func hasClickRevealedSection(in appState: AppState) -> Bool {
+        appState.menuBarManager.section(withName: .hidden)?.isHidden == false ||
+        appState.menuBarManager.section(withName: .alwaysHidden)?.isHidden == false
+    }
+
+    private func attemptClickRevealRehide() {
+        cancelClickRevealRehide()
+
+        guard
+            let appState,
+            appState.settingsManager.hiddenItemsActivationMode == .click,
+            hasClickRevealedSection(in: appState),
+            !isMouseInsideMenuBar
+        else {
             return
         }
 
         guard !isMenuBarItemInterfaceShown, !appState.itemManager.isMouseButtonDown else {
-            scheduleClickRevealRehide()
+            scheduleClickRevealRehide(after: Self.clickRevealRehideRetryInterval)
             return
         }
 
-        clickRevealRehideTimer?.invalidate()
-        clickRevealRehideTimer = nil
         appState.menuBarManager.section(withName: .hidden)?.hide()
         appState.menuBarManager.section(withName: .alwaysHidden)?.hide()
     }
 
-    private func scheduleClickRevealRehide() {
+    private func scheduleClickRevealRehide(after delay: TimeInterval) {
         guard clickRevealRehideTimer == nil else {
             return
         }
 
-        clickRevealRehideTimer = .scheduledTimer(withTimeInterval: 0.25, repeats: false) { [weak self] _ in
+        guard delay > 0 else {
+            attemptClickRevealRehide()
+            return
+        }
+
+        clickRevealRehideTimer = .scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
             Task { @MainActor in
-                self?.clickRevealRehideTimer = nil
-                self?.handleHideAfterClickReveal()
+                self?.attemptClickRevealRehide()
             }
         }
+    }
+
+    private func cancelClickRevealRehide() {
+        clickRevealRehideTimer?.invalidate()
+        clickRevealRehideTimer = nil
     }
 
     private func cancelHoverRevealRehide() {
