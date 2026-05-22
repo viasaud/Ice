@@ -19,8 +19,6 @@ time.
 It is designed to feel native, lightweight, and private: no account, no
 telemetry, no update feed, no background cloud service.
 
-Repository-specific workflow and release rules live in [AGENTS.md](AGENTS.md).
-
 ## How To Use
 
 - Launch **Minimal Ice**.
