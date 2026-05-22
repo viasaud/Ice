@@ -85,10 +85,9 @@ or public support flows.
 
 ## Version And Release
 
-- Version format is `year.month`, for example `26.5`. Do not add a build or
-  commit number to the user-facing version.
-- Before every push, update `MARKETING_VERSION` and
-  `CURRENT_PROJECT_VERSION` to the same `year.month` value.
+- User-facing version format is `year.month`, for example `26.5`. Do not add
+  the build number to `MARKETING_VERSION`.
+- `CURRENT_PROJECT_VERSION` is the numeric build number, for example `260523`.
 - Distribution is source-only unless the user explicitly decides to use
   Developer ID signing and notarization. Do not publish ad-hoc signed app zips.
 - GitHub Release notes, when used, should ask users to build from source and
