@@ -13,7 +13,6 @@ struct MinimalIceApp: App {
     init() {
         let appState = AppState()
         self._appState = StateObject(wrappedValue: appState)
-        MigrationManager.migrateAll(appState: appState)
         appDelegate.assignAppState(appState)
     }
 

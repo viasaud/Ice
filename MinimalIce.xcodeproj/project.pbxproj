@@ -6,12 +6,6 @@
 	objectVersion = 70;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		175061912B1543DD003144CD /* LaunchAtLogin in Frameworks */ = {isa = PBXBuildFile; productRef = 175061902B1543DD003144CD /* LaunchAtLogin */; };
-		1787C4272B16890B002F50DF /* AXSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 1787C4262B16890B002F50DF /* AXSwift */; };
-		17F71BB52B880B4500905CBA /* CompactSlider in Frameworks */ = {isa = PBXBuildFile; productRef = 17F71BB42B880B4500905CBA /* CompactSlider */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXFileReference section */
 		7166832A2A767E6A006ABF84 /* Minimal Ice.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Minimal Ice.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -35,9 +29,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				175061912B1543DD003144CD /* LaunchAtLogin in Frameworks */,
-				1787C4272B16890B002F50DF /* AXSwift in Frameworks */,
-				17F71BB52B880B4500905CBA /* CompactSlider in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -79,11 +70,6 @@
 				71BDFBE12C978E2A00EF145F /* MinimalIce */,
 			);
 			name = MinimalIce;
-			packageProductDependencies = (
-				175061902B1543DD003144CD /* LaunchAtLogin */,
-				1787C4262B16890B002F50DF /* AXSwift */,
-				17F71BB42B880B4500905CBA /* CompactSlider */,
-			);
 			productName = MinimalIce;
 			productReference = 7166832A2A767E6A006ABF84 /* Minimal Ice.app */;
 			productType = "com.apple.product-type.application";
@@ -112,11 +98,6 @@
 				Base,
 			);
 			mainGroup = 716683212A767E6A006ABF84;
-			packageReferences = (
-				1750618F2B1543DD003144CD /* XCRemoteSwiftPackageReference "LaunchAtLogin-Modern" */,
-				1787C4252B16890B002F50DF /* XCRemoteSwiftPackageReference "AXSwift" */,
-				17F71BB32B880B4500905CBA /* XCRemoteSwiftPackageReference "CompactSlider" */,
-			);
 			productRefGroup = 7166832B2A767E6A006ABF84 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -275,7 +256,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 26.5;
+				CURRENT_PROJECT_VERSION = 260524;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -291,7 +272,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 26.5;
+				MARKETING_VERSION = 26.5.24;
 				PRODUCT_BUNDLE_IDENTIFIER = com.personal.Ice;
 				PRODUCT_NAME = "Minimal Ice";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -308,7 +289,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 26.5;
+				CURRENT_PROJECT_VERSION = 260524;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -324,7 +305,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 26.5;
+				MARKETING_VERSION = 26.5.24;
 				PRODUCT_BUNDLE_IDENTIFIER = com.personal.Ice;
 				PRODUCT_NAME = "Minimal Ice";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -355,50 +336,6 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		1750618F2B1543DD003144CD /* XCRemoteSwiftPackageReference "LaunchAtLogin-Modern" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/sindresorhus/LaunchAtLogin-Modern";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.0;
-			};
-		};
-		1787C4252B16890B002F50DF /* XCRemoteSwiftPackageReference "AXSwift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/tmandry/AXSwift";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.3.2;
-			};
-		};
-		17F71BB32B880B4500905CBA /* XCRemoteSwiftPackageReference "CompactSlider" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/buh/CompactSlider";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.1.5;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		175061902B1543DD003144CD /* LaunchAtLogin */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 1750618F2B1543DD003144CD /* XCRemoteSwiftPackageReference "LaunchAtLogin-Modern" */;
-			productName = LaunchAtLogin;
-		};
-		1787C4262B16890B002F50DF /* AXSwift */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 1787C4252B16890B002F50DF /* XCRemoteSwiftPackageReference "AXSwift" */;
-			productName = AXSwift;
-		};
-		17F71BB42B880B4500905CBA /* CompactSlider */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 17F71BB32B880B4500905CBA /* XCRemoteSwiftPackageReference "CompactSlider" */;
-			productName = CompactSlider;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 716683222A767E6A006ABF84 /* Project object */;
 }

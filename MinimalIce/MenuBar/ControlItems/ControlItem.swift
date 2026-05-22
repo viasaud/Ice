@@ -177,20 +177,6 @@ final class ControlItem {
             .store(in: &c)
 
         if let appState {
-            appState.settingsManager.$showSectionDividers
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] shouldShow in
-                    guard
-                        let self,
-                        isSectionDivider,
-                        state == .showItems
-                    else {
-                        return
-                    }
-                    setVisible(shouldShow && section?.name == .alwaysHidden)
-                }
-                .store(in: &c)
-
             appState.settingsManager.$enableAlwaysHiddenSection
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self] enable in
@@ -245,7 +231,6 @@ final class ControlItem {
     /// Updates the appearance of the status item using the given hiding state.
     private func updateStatusItem(with state: HidingState) {
         guard
-            let appState,
             let section,
             let button = statusItem.button
         else {
@@ -272,7 +257,7 @@ final class ControlItem {
                 button.isHighlighted = false
                 setButtonImage(nil, on: button)
             case .showItems:
-                setVisible(shouldShowSectionDivider(appState: appState))
+                setVisible(shouldShowSectionDivider)
                 // Enable the cell, as it may have been previously disabled.
                 button.cell?.isEnabled = true
                 // Set the image based on the section name and the hiding state.
@@ -287,10 +272,7 @@ final class ControlItem {
         }
     }
 
-    private func shouldShowSectionDivider(appState: AppState) -> Bool {
-        guard appState.settingsManager.showSectionDividers else {
-            return false
-        }
+    private var shouldShowSectionDivider: Bool {
         return section?.name == .alwaysHidden
     }
 

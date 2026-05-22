@@ -10,10 +10,6 @@ final class SettingsManager: ObservableObject {
         }
     }
 
-    @Published private(set) var showSectionDividers = false {
-        didSet { Defaults.set(showSectionDividers, forKey: .showSectionDividers) }
-    }
-
     @Published private(set) var enableAlwaysHiddenSection = false {
         didSet {
             Defaults.set(enableAlwaysHiddenSection, forKey: .enableAlwaysHiddenSection)
@@ -50,17 +46,12 @@ final class SettingsManager: ObservableObject {
         Defaults.ifPresent(key: .showOnClick, assign: &showOnClick)
         Defaults.ifPresent(key: .showOnHover, assign: &showOnHover)
         hiddenItemsActivationMode = showOnHover && !showOnClick ? .hover : .click
-        Defaults.ifPresent(key: .showSectionDividers, assign: &showSectionDividers)
         Defaults.ifPresent(key: .enableAlwaysHiddenSection, assign: &enableAlwaysHiddenSection)
         Defaults.ifPresent(key: .tempShowInterval, assign: &tempShowInterval)
     }
 
     func setHiddenItemsActivationMode(_ mode: HiddenItemsActivationMode) {
         hiddenItemsActivationMode = mode
-    }
-
-    func toggleSectionDividers() {
-        showSectionDividers.toggle()
     }
 
     func toggleAlwaysHiddenSection() {

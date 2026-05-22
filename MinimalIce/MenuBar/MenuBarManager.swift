@@ -3,9 +3,9 @@
 //  Ice
 //
 
-@preconcurrency import AXSwift
+import ApplicationServices
 import Combine
-import LaunchAtLogin
+import ServiceManagement
 import SwiftUI
 
 /// Manager for the state of the menu bar.
@@ -120,30 +120,21 @@ final class MenuBarManager: ObservableObject {
             return false
         }
         let position = menuBarWindow.frame.origin
-        do {
-            nonisolated(unsafe) let systemElement = systemWideElement
-            let uiElement = try systemElement.elementAtPosition(Float(position.x), Float(position.y))
-            return try uiElement?.role() == .menuBar
-        } catch {
-            return false
-        }
+        return AXUIElement.menuBar(at: position) != nil
     }
 
     /// Returns the frame of the application menu for the given display.
     func getApplicationMenuFrame(for displayID: CGDirectDisplayID) -> CGRect? {
         let displayBounds = CGDisplayBounds(displayID)
-        nonisolated(unsafe) let systemElement = systemWideElement
 
         guard
-            let menuBar = try? systemElement.elementAtPosition(Float(displayBounds.origin.x), Float(displayBounds.origin.y)),
-            let role = try? menuBar.role(),
-            role == .menuBar,
-            let items: [UIElement] = try? menuBar.arrayAttribute(.children)?.filter({ (try? $0.attribute(.enabled)) == true })
+            let menuBar = AXUIElement.menuBar(at: displayBounds.origin),
+            let items = menuBar.enabledChildren
         else {
             return nil
         }
 
-        let itemFrames = items.lazy.compactMap { try? $0.attribute(.frame) as CGRect? }
+        let itemFrames = items.lazy.compactMap(\.frame)
         let applicationMenuFrame = itemFrames.reduce(.null, CGRectUnion)
 
         if applicationMenuFrame.width <= 0 {
@@ -185,16 +176,6 @@ final class MenuBarManager: ObservableObject {
         revealModeItem.submenu = createRevealModeMenu()
         menu.addItem(revealModeItem)
 
-        let sectionDividersItem = NSMenuItem(
-            title: "Show Dividers",
-            action: #selector(toggleSectionDividers),
-            keyEquivalent: ""
-        )
-        sectionDividersItem.image = .menuIcon("rectangle.split.3x1")
-        sectionDividersItem.target = self
-        sectionDividersItem.state = appState?.settingsManager.showSectionDividers == true ? .on : .off
-        menu.addItem(sectionDividersItem)
-
         let alwaysHiddenSectionItem = NSMenuItem(
             title: "Always-Hidden Section",
             action: #selector(toggleAlwaysHiddenSection),
@@ -224,7 +205,7 @@ final class MenuBarManager: ObservableObject {
         )
         launchAtLoginItem.image = .menuIcon("play.circle")
         launchAtLoginItem.target = self
-        launchAtLoginItem.state = LaunchAtLogin.isEnabled ? .on : .off
+        launchAtLoginItem.state = SMAppService.mainApp.isEnabled ? .on : .off
         menu.addItem(launchAtLoginItem)
 
         menu.addItem(.separator())
@@ -299,14 +280,6 @@ final class MenuBarManager: ObservableObject {
         appState?.settingsManager.setHiddenItemsActivationMode(mode)
     }
 
-    @objc private func toggleSectionDividers(_ menuItem: NSMenuItem) {
-        guard let manager = appState?.settingsManager else {
-            return
-        }
-        manager.toggleSectionDividers()
-        menuItem.state = manager.showSectionDividers ? .on : .off
-    }
-
     @objc private func toggleAlwaysHiddenSection(_ menuItem: NSMenuItem) {
         guard let manager = appState?.settingsManager else {
             return
@@ -323,8 +296,16 @@ final class MenuBarManager: ObservableObject {
     }
 
     @objc private func toggleLaunchAtLogin(_ menuItem: NSMenuItem) {
-        LaunchAtLogin.isEnabled.toggle()
-        menuItem.state = LaunchAtLogin.isEnabled ? .on : .off
+        do {
+            if SMAppService.mainApp.isEnabled {
+                try SMAppService.mainApp.unregister()
+            } else {
+                try SMAppService.mainApp.register()
+            }
+            menuItem.state = SMAppService.mainApp.isEnabled ? .on : .off
+        } catch {
+            Logger.menuBarManager.error("Failed to toggle launch at startup: \(error)")
+        }
     }
 
     /// Returns the menu bar section with the given name.
@@ -368,6 +349,70 @@ private extension NSImage {
         let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)
         image?.isTemplate = true
         return image
+    }
+}
+
+private extension SMAppService {
+    var isEnabled: Bool {
+        status == .enabled
+    }
+}
+
+private extension AXUIElement {
+    static func menuBar(at point: CGPoint) -> AXUIElement? {
+        let systemElement = AXUIElementCreateSystemWide()
+        var element: AXUIElement?
+        guard AXUIElementCopyElementAtPosition(systemElement, Float(point.x), Float(point.y), &element) == .success else {
+            return nil
+        }
+        guard element?.role == kAXMenuBarRole else {
+            return nil
+        }
+        return element
+    }
+
+    var enabledChildren: [AXUIElement]? {
+        children?.filter(\.isEnabled)
+    }
+
+    var frame: CGRect? {
+        guard
+            let positionObject = copyAttribute(NSAccessibility.Attribute.position.rawValue),
+            let sizeObject = copyAttribute(NSAccessibility.Attribute.size.rawValue)
+        else {
+            return nil
+        }
+        let positionValue = positionObject as! AXValue
+        let sizeValue = sizeObject as! AXValue
+        var position = CGPoint.zero
+        var size = CGSize.zero
+        guard
+            AXValueGetValue(positionValue, .cgPoint, &position),
+            AXValueGetValue(sizeValue, .cgSize, &size)
+        else {
+            return nil
+        }
+        return CGRect(origin: position, size: size)
+    }
+
+    private var role: String? {
+        copyAttribute(kAXRoleAttribute) as? String
+    }
+
+    private var isEnabled: Bool {
+        copyAttribute(kAXEnabledAttribute) as? Bool == true
+    }
+
+    private var children: [AXUIElement]? {
+        copyAttribute(kAXChildrenAttribute) as? [AXUIElement]
+    }
+
+    private func copyAttribute(_ attribute: String) -> AnyObject? {
+        var value: AnyObject?
+        guard AXUIElementCopyAttributeValue(self, attribute as CFString, &value) == .success else {
+            return nil
+        }
+        return value
     }
 }
 

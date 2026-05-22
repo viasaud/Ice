@@ -67,8 +67,6 @@ final class PermissionsManager: ObservableObject {
         let options = [
             "AXTrustedCheckOptionPrompt": prompt,
         ] as CFDictionary
-        let isTrusted = AXIsProcessTrustedWithOptions(options)
-        Defaults.set(isTrusted, forKey: .hasAccessibilityPermission)
-        return isTrusted
+        return AXIsProcessTrustedWithOptions(options)
     }
 }
