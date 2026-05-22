@@ -95,6 +95,12 @@ flows.
   `260521`.
 - Every appcast update must have a matching GitHub Release and the exact zip
   referenced by the appcast enclosure.
+- GitHub Release notes should be comprehensive enough for an end user to
+  understand what changed, how to install, and what privacy/permission behavior
+  to expect. Do not use placeholder one-line release bodies.
+- Keep only the current public GitHub Release when asked to clean releases.
+  Delete old GitHub Release entries/assets, but do not delete underlying git
+  tags unless the user explicitly asks.
 - Verify before calling a push/release done:
   - Release build succeeds.
   - Sparkle signature verifies.
