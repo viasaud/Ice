@@ -192,7 +192,6 @@ final class MenuBarSection {
         guard controlItem.state != state else {
             return
         }
-        controlItem.animateTransition(to: state)
         controlItem.state = state
     }
 }

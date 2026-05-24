@@ -34,7 +34,6 @@ final class EventManager {
         }
         switch event.type {
         case .leftMouseDown:
-            handleCommandDragStart(with: event)
             handleShowOnClick()
         case .rightMouseDown:
             handleShowRightClickMenu()
@@ -215,32 +214,15 @@ extension EventManager {
 
     // MARK: Handle Left Mouse Dragged
 
-    private func handleCommandDragStart(with event: NSEvent) {
-        guard
-            event.modifierFlags.contains(.command),
-            isMouseInsideMenuBarItem,
-            !isMouseInsideApplicationMenu,
-            !isMouseInsideNotch
-        else {
-            return
-        }
-        showSectionsDuringCommandDrag()
-    }
-
     private func handleLeftMouseDragged(with event: NSEvent) {
         guard
+            let appState,
             event.modifierFlags.contains(.command),
             isMouseInsideMenuBar
         else {
             return
         }
-        showSectionsDuringCommandDrag()
-    }
 
-    private func showSectionsDuringCommandDrag() {
-        guard let appState else {
-            return
-        }
         // Show revealable items, including section dividers.
         for section in appState.menuBarManager.sections {
             guard appState.canShowSectionDuringCommandDrag(section) else {
