@@ -164,14 +164,31 @@ private struct ObservedMenuBarSnapshot {
     }
 
     init?(items: [MenuBarItem]) {
-        var otherItems = items
-        guard let hiddenControlItem = otherItems.firstIndex(matching: .hiddenControlItem).map({ otherItems.remove(at: $0) }) else {
+        var hiddenControlItem: MenuBarItem?
+        var visibleControlItem: MenuBarItem?
+        var alwaysHiddenControlItem: MenuBarItem?
+        var otherItems = [MenuBarItem]()
+        otherItems.reserveCapacity(items.count)
+
+        for item in items {
+            switch item.info {
+            case .hiddenControlItem where hiddenControlItem == nil:
+                hiddenControlItem = item
+            case .iceIcon where visibleControlItem == nil:
+                visibleControlItem = item
+            case .alwaysHiddenControlItem where alwaysHiddenControlItem == nil:
+                alwaysHiddenControlItem = item
+            default:
+                otherItems.append(item)
+            }
+        }
+
+        guard let hiddenControlItem else {
             return nil
         }
-        guard let visibleControlItem = otherItems.firstIndex(matching: .iceIcon).map({ otherItems.remove(at: $0) }) else {
+        guard let visibleControlItem else {
             return nil
         }
-        let alwaysHiddenControlItem = otherItems.firstIndex(matching: .alwaysHiddenControlItem).map { otherItems.remove(at: $0) }
 
         self.hiddenControlItem = hiddenControlItem
         self.visibleControlItem = visibleControlItem

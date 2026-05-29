@@ -28,6 +28,7 @@ final class MenuBarManager: ObservableObject {
 
     /// The managed sections in the menu bar.
     private(set) var sections = [MenuBarSection]()
+    private var sectionsByName = [MenuBarSection.Name: MenuBarSection]()
 
     /// Initializes a new menu bar manager instance.
     init(appState: AppState) {
@@ -53,11 +54,15 @@ final class MenuBarManager: ObservableObject {
             return
         }
 
-        sections = [
+        let initializedSections = [
             MenuBarSection(name: .visible, appState: appState),
             MenuBarSection(name: .hidden, appState: appState),
             MenuBarSection(name: .alwaysHidden, appState: appState),
         ]
+        sections = initializedSections
+        sectionsByName = Dictionary(
+            uniqueKeysWithValues: initializedSections.map { ($0.name, $0) }
+        )
         sections.forEach { $0.controlItem.refreshStatusItem() }
     }
 
@@ -310,7 +315,7 @@ final class MenuBarManager: ObservableObject {
 
     /// Returns the menu bar section with the given name.
     func section(withName name: MenuBarSection.Name) -> MenuBarSection? {
-        sections.first { $0.name == name }
+        sectionsByName[name]
     }
 }
 

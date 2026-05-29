@@ -53,7 +53,15 @@ final class ControlItem {
 
     /// The menu bar section associated with the control item.
     private weak var section: MenuBarSection? {
-        appState?.menuBarManager.sections.first { $0.controlItem === self }
+        appState?.menuBarManager.section(withName: sectionName)
+    }
+
+    private var sectionName: MenuBarSection.Name {
+        switch identifier {
+        case .iceIcon: .visible
+        case .hidden: .hidden
+        case .alwaysHidden: .alwaysHidden
+        }
     }
 
     /// The control item's window.
@@ -114,16 +122,23 @@ final class ControlItem {
     private static func zeroLengthConstraint(for button: NSStatusBarButton?) -> NSLayoutConstraint? {
         // Keep this AppKit workaround isolated: section dividers need zero length
         // while remaining in the menu bar as item delimiters.
-        if
+        guard
             let button,
-            let constraints = button.window?.contentView?.constraintsAffectingLayout(for: .horizontal),
-            let constraint = constraints.first(where: { $0.secondItem === button.superview })
-        {
-            assert(constraints.filter { $0.secondItem === button.superview }.count == 1)
-            return constraint
-        } else {
+            let constraints = button.window?.contentView?.constraintsAffectingLayout(for: .horizontal)
+        else {
             return nil
         }
+
+        var matchingConstraint: NSLayoutConstraint?
+        var matchingConstraintCount = 0
+        for constraint in constraints where constraint.secondItem === button.superview {
+            matchingConstraintCount += 1
+            if matchingConstraint == nil {
+                matchingConstraint = constraint
+            }
+        }
+        assert(matchingConstraintCount == 1)
+        return matchingConstraint
     }
 
     /// Removes the status item without clearing its stored position.

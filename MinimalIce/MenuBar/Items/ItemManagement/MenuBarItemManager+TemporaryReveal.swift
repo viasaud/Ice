@@ -11,10 +11,6 @@ extension MenuBarItemManager {
         let windowID: CGWindowID
         let info: MenuBarItemInfo
 
-        func matchingItem(in items: [MenuBarItem]) -> MenuBarItem? {
-            items.first { $0.windowID == windowID } ?? items.first { $0.info == info }
-        }
-
         /// The destination to return the item to.
         let returnDestination: MoveDestination
 
@@ -46,6 +42,34 @@ extension MenuBarItemManager {
         let returnDestination: MoveDestination
         let targetItem: MenuBarItem
         let initialWindows: [WindowInfo]
+    }
+
+    private struct CurrentMenuBarItemLookup {
+        private let itemsByWindowID: [CGWindowID: MenuBarItem]
+        private let itemsByInfo: [MenuBarItemInfo: MenuBarItem]
+
+        init(items: [MenuBarItem]) {
+            var itemsByWindowID = [CGWindowID: MenuBarItem]()
+            var itemsByInfo = [MenuBarItemInfo: MenuBarItem]()
+            itemsByWindowID.reserveCapacity(items.count)
+            itemsByInfo.reserveCapacity(items.count)
+
+            for item in items {
+                if itemsByWindowID[item.windowID] == nil {
+                    itemsByWindowID[item.windowID] = item
+                }
+                if itemsByInfo[item.info] == nil {
+                    itemsByInfo[item.info] = item
+                }
+            }
+
+            self.itemsByWindowID = itemsByWindowID
+            self.itemsByInfo = itemsByInfo
+        }
+
+        func item(matching context: TempShownItemContext) -> MenuBarItem? {
+            itemsByWindowID[context.windowID] ?? itemsByInfo[context.info]
+        }
     }
 
     /// Gets the destination to return the given item to after it is temporarily shown.
@@ -282,7 +306,9 @@ extension MenuBarItemManager {
 
         var failedContexts = [TempShownItemContext]()
 
-        let items = MenuBarItem.getMenuBarItems(onScreenOnly: false, activeSpaceOnly: true)
+        let itemLookup = CurrentMenuBarItemLookup(
+            items: MenuBarItem.getMenuBarItems(onScreenOnly: false, activeSpaceOnly: true)
+        )
 
         MouseCursor.hide()
 
@@ -291,7 +317,7 @@ extension MenuBarItemManager {
         }
 
         while let context = tempShownItemContexts.popLast() {
-            guard let item = context.matchingItem(in: items) else {
+            guard let item = itemLookup.item(matching: context) else {
                 continue
             }
             do {

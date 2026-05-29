@@ -43,25 +43,15 @@ extension MenuBarItemInfo: Codable {
     init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
         let string = try container.decode(String.self)
-        let components = string.components(separatedBy: ":")
-        let count = components.count
-        if count > 2 {
-            self.namespace = Namespace(components[0])
-            self.title = components[1...].joined(separator: ":")
-        } else if count == 2 {
-            self.namespace = Namespace(components[0])
-            self.title = components[1]
-        } else if count == 1 {
-            self.namespace = Namespace(components[0])
+
+        guard let separatorIndex = string.firstIndex(of: ":") else {
+            self.namespace = Namespace(string)
             self.title = ""
-        } else {
-            throw DecodingError.dataCorrupted(
-                DecodingError.Context(
-                    codingPath: container.codingPath,
-                    debugDescription: "Missing namespace component"
-                )
-            )
+            return
         }
+
+        self.namespace = Namespace(String(string[..<separatorIndex]))
+        self.title = String(string[string.index(after: separatorIndex)...])
     }
 
     func encode(to encoder: any Encoder) throws {

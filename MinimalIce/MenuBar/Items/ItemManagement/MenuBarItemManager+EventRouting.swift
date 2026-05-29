@@ -338,11 +338,15 @@ extension MenuBarItemManager {
     ///   - events: The events to compare.
     ///   - integerFields: An array of integer value fields to compare on each event.
     nonisolated func eventsMatch(_ events: [CGEvent], by integerFields: [CGEventField]) -> Bool {
-        var fieldValues = Set<[Int64]>()
-        for event in events {
-            let values = integerFields.map(event.getIntegerValueField)
-            fieldValues.insert(values)
-            if fieldValues.count != 1 {
+        guard let firstEvent = events.first else {
+            return true
+        }
+
+        let expectedValues = integerFields.map(firstEvent.getIntegerValueField)
+        for event in events.dropFirst() {
+            for (field, expectedValue) in zip(integerFields, expectedValues)
+                where event.getIntegerValueField(field) != expectedValue
+            {
                 return false
             }
         }

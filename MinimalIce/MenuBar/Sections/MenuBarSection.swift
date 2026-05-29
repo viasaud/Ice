@@ -9,7 +9,7 @@ import Cocoa
 @MainActor
 final class MenuBarSection {
     /// The name of a menu bar section.
-    enum Name: CaseIterable {
+    enum Name: CaseIterable, Hashable {
         case visible
         case hidden
         case alwaysHidden
