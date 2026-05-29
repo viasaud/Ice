@@ -162,16 +162,6 @@ extension Bridging {
         static let activeSpace = WindowListOption(rawValue: 1 << 2)
     }
 
-    /// The total number of windows.
-    static var windowCount: Int {
-        getWindowCount()
-    }
-
-    /// The number of windows currently on-screen.
-    static var onScreenWindowCount: Int {
-        getOnScreenWindowCount()
-    }
-
     /// Returns a list of window identifiers using the given options.
     ///
     /// - Parameter option: Options that filter the returned list.
@@ -193,7 +183,7 @@ extension Bridging {
 
         let activeSpaceID = activeSpaceID
         return list.filter { windowID in
-            getSpaceList(for: windowID, option: .allSpaces).contains(activeSpaceID)
+            getSpaceList(for: windowID).contains(activeSpaceID)
         }
     }
 }
@@ -201,11 +191,6 @@ extension Bridging {
 // MARK: - CGSSpace
 
 extension Bridging {
-    /// Options that determine the space identifiers to return in a space list.
-    enum SpaceListOption {
-        case allSpaces, visibleSpaces
-    }
-
     /// The identifier of the active space.
     static var activeSpaceID: CGSSpaceID {
         CGSGetActiveSpace(CGSMainConnectionID())
@@ -215,12 +200,8 @@ extension Bridging {
     /// the given identifier.
     ///
     /// - Parameter windowID: An identifier for a window.
-    static func getSpaceList(for windowID: CGWindowID, option: SpaceListOption) -> [CGSSpaceID] {
-        let mask: CGSSpaceMask = switch option {
-        case .allSpaces: .allSpaces
-        case .visibleSpaces: .allVisibleSpaces
-        }
-        guard let spaces = CGSCopySpacesForWindows(CGSMainConnectionID(), mask, [windowID] as CFArray) else {
+    private static func getSpaceList(for windowID: CGWindowID) -> [CGSSpaceID] {
+        guard let spaces = CGSCopySpacesForWindows(CGSMainConnectionID(), .allSpaces, [windowID] as CFArray) else {
             Logger.bridging.error("CGSCopySpacesForWindows failed")
             return []
         }
@@ -231,14 +212,6 @@ extension Bridging {
         return spaceIDs
     }
 
-    /// Returns a Boolean value that indicates whether the window with the
-    /// given identifier is on the active space.
-    ///
-    /// - Parameter windowID: An identifier for a window.
-    static func isWindowOnActiveSpace(_ windowID: CGWindowID) -> Bool {
-        getSpaceList(for: windowID, option: .allSpaces).contains(activeSpaceID)
-    }
-
     /// Returns a Boolean value that indicates whether the space with the given
     /// identifier is a fullscreen space.
     ///
@@ -246,31 +219,6 @@ extension Bridging {
     static func isSpaceFullscreen(_ spaceID: CGSSpaceID) -> Bool {
         let type = CGSSpaceGetType(CGSMainConnectionID(), spaceID)
         return type == .fullscreen
-    }
-}
-
-// MARK: - Process Responsivity
-
-extension Bridging {
-    /// Constants that indicate the responsivity of an app.
-    enum Responsivity {
-        case responsive, unresponsive, unknown
-    }
-
-    /// Returns the responsivity of the given process.
-    ///
-    /// - Parameter pid: The Unix process identifier of the process to check.
-    static func responsivity(for pid: pid_t) -> Responsivity {
-        var psn = ProcessSerialNumber()
-        let result = GetProcessForPID(pid, &psn)
-        guard result == noErr else {
-            Logger.bridging.error("GetProcessForPID failed with error \(result)")
-            return .unknown
-        }
-        if CGSEventIsAppUnresponsive(CGSMainConnectionID(), &psn) {
-            return .unresponsive
-        }
-        return .responsive
     }
 }
 

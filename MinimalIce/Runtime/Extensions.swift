@@ -4,7 +4,7 @@
 //
 
 import Combine
-import SwiftUI
+import Cocoa
 
 // MARK: - CGError
 
@@ -94,11 +94,6 @@ extension NSScreen {
         )
     }
 
-    /// Returns the height of the menu bar on this screen.
-    func getMenuBarHeight() -> CGFloat? {
-        let menuBarWindow = WindowInfo.getMenuBarWindow(for: displayID)
-        return menuBarWindow?.frame.height
-    }
 }
 
 // MARK: - NSStatusItem
@@ -175,18 +170,4 @@ extension Task where Failure == any Error {
 
 struct TaskTimeoutError: Error, CustomStringConvertible {
     let description = "Task timed out before completion"
-}
-
-// MARK: - TimeInterval
-
-extension TimeInterval {
-    /// A localized label for a duration expressed in seconds.
-    var formattedSecondsLabel: LocalizedStringKey {
-        let formattedValue = formatted()
-        return if self == 1 {
-            LocalizedStringKey(formattedValue + " second")
-        } else {
-            LocalizedStringKey(formattedValue + " seconds")
-        }
-    }
 }

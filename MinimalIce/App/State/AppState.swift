@@ -22,16 +22,13 @@ final class AppState: ObservableObject {
     private(set) lazy var menuBarManager = MenuBarManager(appState: self)
 
     /// Manager for app permissions.
-    private(set) lazy var permissionsManager = PermissionsManager(appState: self)
+    private(set) lazy var permissionsManager = PermissionsManager()
 
     /// Manager for the app's settings.
     private(set) lazy var settingsManager = SettingsManager(appState: self)
 
     /// A Boolean value that indicates whether the "ShowOnHover" feature is prevented.
     private(set) var isShowOnHoverPrevented = false
-
-    /// A Boolean value that indicates whether the app has activated before.
-    private var hasActivated = false
 
     /// Storage for internal observers.
     private var cancellables = Set<AnyCancellable>()
@@ -143,34 +140,6 @@ final class AppState: ObservableObject {
         section.name != .alwaysHidden || canRevealAlwaysHiddenSection
     }
 
-    /// Returns the sections that may appear in a control item's menu.
-    func revealableSectionNamesForControlMenu() -> [MenuBarSection.Name] {
-        canRevealAlwaysHiddenSection ? [.hidden, .alwaysHidden] : [.hidden]
-    }
-
-    /// Activates the app and sets its activation policy to the given value.
-    func activate(withPolicy policy: NSApplication.ActivationPolicy) {
-        func activateCurrentApplication() {
-            if let frontApp = NSWorkspace.shared.frontmostApplication {
-                NSRunningApplication.current.activate(from: frontApp)
-            } else {
-                NSApp.activate()
-            }
-            NSApp.setActivationPolicy(policy)
-        }
-
-        if hasActivated {
-            activateCurrentApplication()
-        } else {
-            hasActivated = true
-            Logger.appState.debug("First time activating app, so going through Dock")
-            NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.dock").first?.activate()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                activateCurrentApplication()
-            }
-        }
-    }
-
     /// Deactivates the app and sets its activation policy to the given value.
     func deactivate(withPolicy policy: NSApplication.ActivationPolicy) {
         if let nextApp = NSWorkspace.shared.runningApplications.first(where: { $0 != .current }) {
@@ -190,10 +159,4 @@ final class AppState: ObservableObject {
     func allowShowOnHover() {
         isShowOnHoverPrevented = false
     }
-}
-
-// MARK: - Logger
-private extension Logger {
-    /// The logger to use for the app state.
-    static let appState = Logger(category: "AppState")
 }

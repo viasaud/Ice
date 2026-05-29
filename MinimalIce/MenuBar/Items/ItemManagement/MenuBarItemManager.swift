@@ -8,31 +8,22 @@ import Combine
 
 /// Manager for menu bar items.
 @MainActor
-final class MenuBarItemManager: ObservableObject {
-    /// The manager's menu bar item cache.
-    @Published private(set) var itemCache = ItemCache()
-
+final class MenuBarItemManager {
     /// The shared app state.
     private(set) weak var appState: AppState?
 
     /// Storage for internal observers.
     private var cancellables = Set<AnyCancellable>()
 
-    /// The current menu bar item cache refresh task, if one is running.
-    private var cacheRefreshTask: Task<Void, Never>?
+    /// The current control item order check task, if one is running.
+    private var controlItemOrderCheckTask: Task<Void, Never>?
 
-    /// A Boolean value that indicates whether another cache refresh was requested
-    /// while the current refresh task was running.
-    private var isCacheRefreshPending = false
+    /// A Boolean value that indicates whether another order check was requested
+    /// while the current check task was running.
+    private var isControlItemOrderCheckPending = false
 
-    /// Cached window identifiers for the most recent items.
-    var cachedItemWindowIDs = [CGWindowID]()
-
-    /// Context values for the current temporarily shown items.
-    var tempShownItemContexts = [TempShownItemContext]()
-
-    /// A timer that determines when to rehide the temporarily shown items.
-    var tempShownItemsTimer: Timer?
+    /// Window identifiers from the most recent control item order check.
+    var lastObservedMenuBarItemWindowIDs = [CGWindowID]()
 
     /// The last time a menu bar item was moved.
     var lastItemMoveStartDate: Date?
@@ -63,7 +54,6 @@ final class MenuBarItemManager: ObservableObject {
         static let pollingInterval: Duration = .milliseconds(10)
         static let eventReceiptTimeout: Duration = .milliseconds(50)
         static let frameFallbackDelay: Duration = .milliseconds(50)
-        static let rehideRetryInterval: TimeInterval = 3
     }
 
     /// A Boolean value that indicates whether a menu bar item, or
@@ -99,16 +89,6 @@ final class MenuBarItemManager: ObservableObject {
         configureCancellables()
     }
 
-    /// Replaces the cached menu bar item snapshot.
-    func replaceItemCache(with cache: ItemCache) {
-        itemCache = cache
-    }
-
-    /// Clears the cached menu bar item snapshot.
-    func clearItemCache() {
-        itemCache.clear()
-    }
-
     /// Configures the internal observers for the manager.
     private func configureCancellables() {
         var c = Set<AnyCancellable>()
@@ -120,7 +100,7 @@ final class MenuBarItemManager: ObservableObject {
                 guard let self else {
                     return
                 }
-                requestItemCacheRefresh()
+                requestControlItemOrderCheck()
             }
             .store(in: &c)
 
@@ -130,7 +110,7 @@ final class MenuBarItemManager: ObservableObject {
                 guard let self else {
                     return
                 }
-                requestItemCacheRefresh()
+                requestControlItemOrderCheck()
             }
             .store(in: &c)
 
@@ -159,24 +139,24 @@ final class MenuBarItemManager: ObservableObject {
         cancellables = c
     }
 
-    private func requestItemCacheRefresh() {
-        guard cacheRefreshTask == nil else {
-            isCacheRefreshPending = true
+    private func requestControlItemOrderCheck() {
+        guard controlItemOrderCheckTask == nil else {
+            isControlItemOrderCheckPending = true
             return
         }
 
-        isCacheRefreshPending = true
-        cacheRefreshTask = Task { @MainActor [weak self] in
+        isControlItemOrderCheckPending = true
+        controlItemOrderCheckTask = Task { @MainActor [weak self] in
             guard let self else {
                 return
             }
 
             repeat {
-                isCacheRefreshPending = false
-                await cacheItemsIfNeeded()
-            } while isCacheRefreshPending
+                isControlItemOrderCheckPending = false
+                await repairControlItemOrderIfNeeded()
+            } while isControlItemOrderCheckPending
 
-            cacheRefreshTask = nil
+            controlItemOrderCheckTask = nil
         }
     }
 }

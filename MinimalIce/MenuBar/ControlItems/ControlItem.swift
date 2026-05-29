@@ -10,7 +10,7 @@ import Combine
 @MainActor
 final class ControlItem {
     /// Possible identifiers for control items.
-    enum Identifier: String, CaseIterable {
+    enum Identifier: String {
         case iceIcon = "SItem"
         case hidden = "HItem"
         case alwaysHidden = "AHItem"
@@ -21,8 +21,7 @@ final class ControlItem {
         case hideItems, showItems
     }
 
-    /// Possible lengths for control items.
-    enum Lengths {
+    private enum StatusItemLength {
         static let standard: CGFloat = NSStatusItem.variableLength
         static let expanded: CGFloat = 10_000
     }
@@ -67,14 +66,6 @@ final class ControlItem {
     /// The control item's window.
     var window: NSWindow? {
         statusItem.button?.window
-    }
-
-    /// The identifier of the control item's window.
-    var windowID: CGWindowID? {
-        guard let window else {
-            return nil
-        }
-        return CGWindowID(exactly: window.windowNumber)
     }
 
     /// A Boolean value that indicates whether the control item serves as
@@ -256,11 +247,7 @@ final class ControlItem {
             setVisible(true)
             // Enable the cell, as it may have been previously disabled.
             button.cell?.isEnabled = true
-            let image = switch state {
-            case .hideItems: ControlItemImages.chevronLarge
-            case .showItems: ControlItemImages.chevronLarge
-            }
-            setButtonImage(image, on: button)
+            button.image = ControlItemImages.chevronLarge
         case .hidden, .alwaysHidden:
             switch state {
             case .hideItems:
@@ -269,7 +256,7 @@ final class ControlItem {
                 button.cell?.isEnabled = false
                 // Cell still sometimes briefly flashes on expansion unless manually unhighlighted.
                 button.isHighlighted = false
-                setButtonImage(nil, on: button)
+                button.image = nil
             case .showItems:
                 setVisible(shouldShowSectionDivider)
                 // Enable the cell, as it may have been previously disabled.
@@ -277,9 +264,9 @@ final class ControlItem {
                 // Set the image based on the section name and the hiding state.
                 switch section.name {
                 case .hidden:
-                    setButtonImage(nil, on: button)
+                    button.image = nil
                 case .alwaysHidden:
-                    setButtonImage(ControlItemImages.chevronLarge, on: button)
+                    button.image = ControlItemImages.chevronLarge
                 case .visible: break
                 }
             }
@@ -297,11 +284,11 @@ final class ControlItem {
         }
         if isVisible {
             statusItem.length = switch section.name {
-            case .visible: Lengths.standard
+            case .visible: StatusItemLength.standard
             case .hidden, .alwaysHidden:
                 switch state {
-                case .hideItems: Lengths.expanded
-                case .showItems: Lengths.standard
+                case .hideItems: StatusItemLength.expanded
+                case .showItems: StatusItemLength.standard
                 }
             }
             constraint?.isActive = true
@@ -365,12 +352,6 @@ final class ControlItem {
         let cached = Defaults.statusItemPreferredPosition(for: autosaveName)
         statusItem.isVisible = false
         Defaults.setStatusItemPreferredPosition(cached, for: autosaveName)
-    }
-}
-
-private extension ControlItem {
-    func setButtonImage(_ image: NSImage?, on button: NSStatusBarButton) {
-        button.image = image
     }
 }
 

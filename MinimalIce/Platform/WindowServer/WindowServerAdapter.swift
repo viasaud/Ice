@@ -17,10 +17,6 @@ enum WindowServerAdapter {
         Bridging.isSpaceFullscreen(activeSpaceID)
     }
 
-    static var menuBarItemWindowIDs: [CGWindowID] {
-        Bridging.getWindowList(option: .menuBarItems)
-    }
-
     static var activeSpaceMenuBarItemWindowIDs: [CGWindowID] {
         Bridging.getWindowList(option: [.menuBarItems, .activeSpace])
     }

@@ -9,10 +9,6 @@ struct MenuBarItemInfo: Hashable, CustomStringConvertible {
     let namespace: Namespace
     let title: String
 
-    var isSpecial: Bool {
-        namespace == .special
-    }
-
     var description: String {
         namespace.rawValue + ":" + title
     }
@@ -36,28 +32,6 @@ extension MenuBarItemInfo {
     static let audioVideoModule = Self(namespace: .controlCenter, title: "AudioVideoModule")
     static let faceTime = Self(namespace: .controlCenter, title: "FaceTime")
     static let musicRecognition = Self(namespace: .controlCenter, title: "MusicRecognition")
-    static let newItems = Self(namespace: .special, title: "NewItems")
-}
-
-extension MenuBarItemInfo: Codable {
-    init(from decoder: any Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let string = try container.decode(String.self)
-
-        guard let separatorIndex = string.firstIndex(of: ":") else {
-            self.namespace = Namespace(string)
-            self.title = ""
-            return
-        }
-
-        self.namespace = Namespace(String(string[..<separatorIndex]))
-        self.title = String(string[string.index(after: separatorIndex)...])
-    }
-
-    func encode(to encoder: any Encoder) throws {
-        var container = encoder.singleValueContainer()
-        try container.encode([namespace.rawValue, title].joined(separator: ":"))
-    }
 }
 
 extension MenuBarItemInfo {
@@ -86,7 +60,6 @@ extension MenuBarItemInfo.Namespace {
     static let ice = Self(Constants.bundleIdentifier)
     static let controlCenter = Self("com.apple.controlcenter")
     static let systemUIServer = Self("com.apple.systemuiserver")
-    static let special = Self("Special")
     static let null = Self("<null>")
 }
 
@@ -158,12 +131,6 @@ struct MenuBarItem {
             return bestDisplayName(for: owningApplication)
         }
         return displayName(for: title, ownedBy: owningApplication)
-    }
-
-    /// A Boolean value that indicates whether the item is currently
-    /// in the menu bar.
-    var isCurrentlyInMenuBar: Bool {
-        WindowServerAdapter.menuBarItemWindowIDs.contains(windowID)
     }
 
     /// A string to use for logging purposes.
@@ -285,20 +252,6 @@ extension MenuBarItem {
             .compactMap(MenuBarItem.init(itemWindow:))
             .filter { !activeSpaceOnly || $0.title != "" }
             .sortedByOrderInMenuBar()
-    }
-}
-
-// MARK: MenuBarItem: Equatable
-extension MenuBarItem: Equatable {
-    static func == (lhs: MenuBarItem, rhs: MenuBarItem) -> Bool {
-        lhs.window == rhs.window
-    }
-}
-
-// MARK: MenuBarItem: Hashable
-extension MenuBarItem: Hashable {
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(window)
     }
 }
 

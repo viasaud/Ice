@@ -40,14 +40,8 @@ enum Defaults {
 
 extension Defaults {
     enum Key: String {
-
-        // MARK: General Settings
-
         case showOnClick = "ShowOnClick"
         case showOnHover = "ShowOnHover"
-
-        // MARK: Advanced Settings
-
         case enableAlwaysHiddenSection = "EnableAlwaysHiddenSection"
         case tempShowInterval = "TempShowInterval"
     }

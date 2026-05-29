@@ -118,16 +118,6 @@ final class MenuBarManager: ObservableObject {
         isMenuBarHiddenBySystemUserDefaults = hidden
     }
 
-    /// Returns a Boolean value that indicates whether the given display
-    /// has a valid menu bar.
-    func hasValidMenuBar(in windows: [WindowInfo], for display: CGDirectDisplayID) -> Bool {
-        guard let menuBarWindow = WindowInfo.getMenuBarWindow(from: windows, for: display) else {
-            return false
-        }
-        let position = menuBarWindow.frame.origin
-        return AXUIElement.menuBar(at: position) != nil
-    }
-
     /// Returns the frame of the application menu for the given display.
     func getApplicationMenuFrame(for displayID: CGDirectDisplayID) -> CGRect? {
         let displayBounds = CGDisplayBounds(displayID)

@@ -9,7 +9,7 @@ final class PermissionsManager: ObservableObject {
     private var timerCancellable: AnyCancellable?
     private var permissionCancellable: AnyCancellable?
 
-    init(appState: AppState) {
+    init() {
         refreshAllPermissions()
         startChecking()
     }

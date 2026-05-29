@@ -130,21 +130,21 @@ extension MenuBarItemManager {
 
         guard
             let mouseDownEvent = CGEvent.menuBarItemEvent(
-                type: .move(.leftMouseDown),
+                type: .leftMouseDown,
                 location: startPoint,
                 item: item,
                 pid: item.ownerPID,
                 source: source
             ),
             let mouseUpEvent = CGEvent.menuBarItemEvent(
-                type: .move(.leftMouseUp),
+                type: .leftMouseUp,
                 location: endPoint,
                 item: targetItem,
                 pid: item.ownerPID,
                 source: source
             ),
             let fallbackEvent = CGEvent.menuBarItemEvent(
-                type: .move(.leftMouseUp),
+                type: .leftMouseUp,
                 location: fallbackPoint,
                 item: item,
                 pid: item.ownerPID,
@@ -194,7 +194,7 @@ extension MenuBarItemManager {
             throw EventError(code: .invalidItem, item: item)
         }
 
-        try await performMenuBarItemOperation(on: item, stopsEventMonitors: true) {
+        try await performMenuBarItemOperation(on: item) {
             // Item movement can occasionally fail. Retry a few times,
             // throwing the last attempt's error if it fails.
             for attempt in 1...MoveRetry.maxAttempts {

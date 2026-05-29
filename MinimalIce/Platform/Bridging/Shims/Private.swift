@@ -24,12 +24,7 @@ struct CGSSpaceMask: OptionSet {
     static let includesOthers = CGSSpaceMask(rawValue: 1 << 1)
     static let includesUser = CGSSpaceMask(rawValue: 1 << 2)
 
-    static let includesVisible = CGSSpaceMask(rawValue: 1 << 16)
-
-    static let currentSpace: CGSSpaceMask = [.includesUser, .includesCurrent]
-    static let otherSpaces: CGSSpaceMask = [.includesOthers, .includesCurrent]
     static let allSpaces: CGSSpaceMask = [.includesUser, .includesOthers, .includesCurrent]
-    static let allVisibleSpaces: CGSSpaceMask = [.includesVisible, .allSpaces]
 }
 
 // MARK: - CGSConnection Functions
@@ -52,20 +47,6 @@ func CGSSetConnectionProperty(
     _ key: CFString,
     _ value: CFTypeRef
 ) -> CGError
-
-// MARK: - CGSEvent Functions
-
-@_silgen_name("CGSEventIsAppUnresponsive")
-func CGSEventIsAppUnresponsive(
-    _ cid: CGSConnectionID,
-    _ psn: inout ProcessSerialNumber
-) -> Bool
-
-@_silgen_name("GetProcessForPID")
-func GetProcessForPID(
-    _ pid: pid_t,
-    _ psn: inout ProcessSerialNumber
-) -> OSStatus
 
 // MARK: - CGSSpace Functions
 

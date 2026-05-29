@@ -13,24 +13,6 @@ final class MenuBarSection {
         case visible
         case hidden
         case alwaysHidden
-
-        /// A string to show in the interface.
-        var displayString: String {
-            switch self {
-            case .visible: "Visible"
-            case .hidden: "Hidden"
-            case .alwaysHidden: "Always-Hidden"
-            }
-        }
-
-        /// A string to use for logging purposes.
-        var logString: String {
-            switch self {
-            case .visible: "visible section"
-            case .hidden: "hidden section"
-            case .alwaysHidden: "always-hidden section"
-            }
-        }
     }
 
     /// The name of the section.
